@@ -90,7 +90,8 @@ public class ClientThread implements Runnable{
                     }
                 }
                 System.out.println("final file:" +file.toPath());
-                ResponseBuilder responseBuilder = new ResponseBuilder();
+                // DEPRECATED: ResponseBuilder is now static
+//                ResponseBuilder responseBuilder = new ResponseBuilder();
 
                 if(file.canRead()) {
                     System.out.println("can read file");
@@ -101,7 +102,7 @@ public class ClientThread implements Runnable{
                     String contentType = URLConnection.guessContentTypeFromName(file.getName());
                     System.out.println("MIME: "+contentType);
 
-                    String header = responseBuilder.generateHeader(contentType,StatusCode.SUCCESS_200_OK ,contentBytes.length);
+                    String header = ResponseBuilder.generateHeader(contentType,StatusCode.SUCCESS_200_OK ,contentBytes.length);
                     System.out.println("\n\nheader: \n"+header);
 
                     outputStream.write(header);
