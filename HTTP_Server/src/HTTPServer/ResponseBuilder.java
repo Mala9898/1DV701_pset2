@@ -12,9 +12,9 @@ import java.util.Date;
 public class ResponseBuilder {
     public static final String CRLF = "\r\n";
 
-    public String generateHeader(String contentType, int length) {
+    public String generateHeader(String contentType,StatusCode statusCode, int length) {
         StringBuilder header = new StringBuilder();
-        header.append("HTTP/1.1 200 OK"+CRLF); // TODO fix this hardcoded
+        header.append("HTTP/1.1 "+statusCode.getCode()+CRLF); // TODO fix this hardcoded
         header.append("Server: assignment 2 server"+CRLF);
         header.append("Date: "+(new Date()) +CRLF);
         header.append("Content-Type: "+contentType +CRLF);

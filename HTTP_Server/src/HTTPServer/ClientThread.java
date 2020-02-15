@@ -20,7 +20,8 @@ public class ClientThread implements Runnable{
 
     private Socket clientSocket;
     private File servingDirectory;
-    private final int REQUEST_BUFFER_LEN = 4096;
+//    private final int REQUEST_BUFFER_LEN = 4096;
+    private final int REQUEST_BUFFER_LEN = 90000;
 
     public ClientThread(Socket clientSocket, File directory) {
         this.clientSocket = clientSocket;
@@ -42,11 +43,14 @@ public class ClientThread implements Runnable{
             // todo: send "414 URI Too Long" error if totalBytesRead >= 4096:
             String requestString = new String(requestBuffer, 0, totalBytesRead);
 
+            int indexOfPayloadStart = requestString.indexOf("\r\n\r\n");
+            System.out.println("\t PAYLOAD START: "+indexOfPayloadStart);
+
             // split by \r\n. additionally, "+" removes empty lines.
             // https://stackoverflow.com/questions/454908/split-java-string-by-new-line
             String[] requestLines = requestString.split("[\\r\\n]+");
 
-//            Arrays.stream(requestLines).forEach(line -> System.out.println("line:{"+line+"}"));
+            Arrays.stream(requestLines).forEach(line -> System.out.println("line:{"+line+"}"));
 
             // Request-Line   = Method SP Request-URI SP HTTP-Version CRLF
             // SOURCE: https://tools.ietf.org/html/rfc2616#page-35
@@ -59,60 +63,64 @@ public class ClientThread implements Runnable{
             String requestMethod = firstLineParameters[0];
             String requestURI = firstLineParameters[1];
 
-            File file = new File(servingDirectory, requestURI);
-
-            // prevent "../../" hacks
-            // https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/io/File.html#getCanonicalPath()
-            //  "removes redundant names such as "." and ".." from the pathname,
-            //   resolving symbolic links (on UNIX platforms), and converting drive letters to a standard case (on Microsoft Windows platforms)."
-            if(!file.getCanonicalPath().startsWith(servingDirectory.getPath())){
-                // todo send 400 bad request
-            }
-
-
-            if(Files.isDirectory(Paths.get(servingDirectory+requestURI))) {
-                if(Files.isReadable(Paths.get(servingDirectory+requestURI + "/index.html"))){
-//                    System.out.println("found index.html");
-                    file = new File(Paths.get(servingDirectory+requestURI+"/index.html").toString());
-                }
-                else if(Files.isReadable(Paths.get(servingDirectory+requestURI + "/index.htm"))){
-//                    System.out.println("found index.htm");
-                    file = new File(Paths.get(servingDirectory+requestURI+"/index.htm").toString());
-                } else {
-                    System.out.println("FOUND NOTHING! index.html");
-                    // todo: send "404 not found".... neither index.html nor index.htm was found. simply an empty directory.
-                }
-            }
-
-            System.out.println("final file:" +file.toPath());
-
             Arrays.stream(firstLineParameters).forEach(line -> System.out.println("\tfirstLine:{"+line+"}"));
 
-            ResponseBuilder responseBuilder = new ResponseBuilder();
+            if(requestMethod.compareTo("GET") == 0) {
+                File file = new File(servingDirectory, requestURI);
 
+                // prevent "../../" hacks
+                // https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/io/File.html#getCanonicalPath()
+                //  "removes redundant names such as "." and ".." from the pathname,
+                //   resolving symbolic links (on UNIX platforms), and converting drive letters to a standard case (on Microsoft Windows platforms)."
+                if(!file.getCanonicalPath().startsWith(servingDirectory.getPath())){
+                    // todo send 400 bad request
+                }
 
-            if(file.canRead()) {
-                System.out.println("can read file");
-                byte[] contentBytes = Files.readAllBytes(Paths.get(file.getPath()));
+                if(Files.isDirectory(Paths.get(servingDirectory+requestURI))) {
+                    if(Files.isReadable(Paths.get(servingDirectory+requestURI + "/index.html"))){
+//                    System.out.println("found index.html");
+                        file = new File(Paths.get(servingDirectory+requestURI+"/index.html").toString());
+                    }
+                    else if(Files.isReadable(Paths.get(servingDirectory+requestURI + "/index.htm"))){
+//                    System.out.println("found index.htm");
+                        file = new File(Paths.get(servingDirectory+requestURI+"/index.htm").toString());
+                    } else {
+                        System.out.println("FOUND NOTHING! index.html");
+                        // todo: send "404 not found".... neither index.html nor index.htm was found. simply an empty directory.
+                    }
+                }
+                System.out.println("final file:" +file.toPath());
+                ResponseBuilder responseBuilder = new ResponseBuilder();
 
-                // get MIME type
-                // https://stackoverflow.com/questions/51438/getting-a-files-mime-type-in-java
-                String contentType = URLConnection.guessContentTypeFromName(file.getName());
-                System.out.println("MIME: "+contentType);
+                if(file.canRead()) {
+                    System.out.println("can read file");
+                    byte[] contentBytes = Files.readAllBytes(Paths.get(file.getPath()));
 
-                String header = responseBuilder.generateHeader(contentType, contentBytes.length);
-                System.out.println("\n\nheader: \n"+header);
+                    // get MIME type
+                    // https://stackoverflow.com/questions/51438/getting-a-files-mime-type-in-java
+                    String contentType = URLConnection.guessContentTypeFromName(file.getName());
+                    System.out.println("MIME: "+contentType);
 
-                outputStream.write(header);
-                outputStream.flush();
+                    String header = responseBuilder.generateHeader(contentType,StatusCode.SUCCESS_200_OK ,contentBytes.length);
+                    System.out.println("\n\nheader: \n"+header);
 
-                rawOutputStream.write(contentBytes);
-                outputStream.flush();
+                    outputStream.write(header);
+                    outputStream.flush();
 
-            } else {
-                System.err.println("CANNOT READ FILE");
+                    rawOutputStream.write(contentBytes);
+                    outputStream.flush();
+
+                } else {
+                    System.err.println("CANNOT READ FILE");
+                }
             }
-//            responseBuilder.
+
+            else if(requestMethod.compareTo("POST") == 0) {
+                // TODO: implement x-www-form-urlencoded, multi-part form, binary data.
+                // TODO: need to implement the RequestParser to get Content-Length etc...
+//                File clientUpload = new File("book.jpg");
+                System.out.println("client sent a POST");
+            }
 
         } catch (IOException e) {
             e.printStackTrace();
