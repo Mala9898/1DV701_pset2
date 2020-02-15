@@ -43,7 +43,7 @@ public class HTTPServer {
                 System.exit(-1);
             }
         } catch (Exception e) {
-            System.err.println("IO exception occured while reading directory: "+e.getMessage());
+            System.err.println("IO exception occurred while reading directory: " + e.getMessage());
             System.exit(-1);
         }
     }

@@ -10,6 +10,11 @@ import java.util.Date;
 
 
 public class ResponseBuilder {
+
+    private ResponseBuilder() {
+        // Private constructor to hide the implicit public constructor
+    }
+
     public static final String CRLF = "\r\n";
 
     public static String generateHeader(String contentType,StatusCode statusCode, int length) {
@@ -19,7 +24,7 @@ public class ResponseBuilder {
         header.append("Date: "+(new Date()) +CRLF);
         header.append("Content-Type: "+contentType +CRLF);
 //        header.append("Content-Type: "+contentType+"; charset=UTF-8" +CRLF);
-        header.append("Content-Length: "+length +CRLF);
+        header.append("Content-Length: " + length + CRLF);
         header.append(CRLF); // end of header is indicated by two CRLFs. We add the last one here.
         return header.toString();
     }
