@@ -10,10 +10,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
-import java.util.Arrays;
+import java.util.ArrayList;
 
 public class TestServerThread implements Runnable {
 	private Socket socket;
+	ArrayList<String[]> fullRequest = new ArrayList<>();
 
 	public TestServerThread(Socket s) {
 		socket = s;
@@ -33,16 +34,19 @@ public class TestServerThread implements Runnable {
 		}
 		byte[] bytes = new byte[2048];
 		StringBuilder lineFromClient = new StringBuilder();
-		int read;
 		boolean finishedReading = false;
 		String completeMessage = "";
 		try {
 			MainLoop:
 			while (true) {
-				String[] request = getRequest(input);
-				if (request.length == 1 && request[0].equals("")) {
+				String[] requestPart = getRequestLine(input);
+				if (requestPart.length == 1 && requestPart[0].equals("")) {
 					System.out.println("Finished getting header");
 					finishedReading = true;
+					break;
+				}
+				else {
+					fullRequest.add(requestPart);
 				}
 			}
 		}
@@ -50,9 +54,11 @@ public class TestServerThread implements Runnable {
 			System.err.println("Connection failed, reason: " + e.getMessage());
 			System.err.println("Closing connection: " + socket.getInetAddress());
 		}
+
+
 	}
 
-	private String[] getRequest(InputStream in) throws IOException {
+	private String[] getRequestLine(InputStream in) throws IOException {
 		int read;
 		StringBuilder lineFromClient = new StringBuilder();
 		String completeMessage;
@@ -66,6 +72,7 @@ public class TestServerThread implements Runnable {
 						continue;
 					}
 					completeMessage = lineFromClient.toString();
+					// Split on whitespace
 					return completeMessage.split("\\s+");
 				}
 				else {
