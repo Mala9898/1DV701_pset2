@@ -7,6 +7,7 @@
 package test_pack;
 
 import HTTPServer.ResponseBuilder;
+import HTTPServer.StatusCode;
 
 import java.io.File;
 import java.io.IOException;
@@ -19,7 +20,8 @@ import java.util.ArrayList;
 
 public class TestServerThread implements Runnable {
 	private Socket socket;
-	private String index = "index.html";
+	private final String INDEX_HTML = "/index.html";
+	private final String INDEX_HTM = "/index.htm";
 	private File rootDirectory;
 	ArrayList<String[]> fullRequest = new ArrayList<>();
 
@@ -65,21 +67,31 @@ public class TestServerThread implements Runnable {
 		String httpVersion = mainRequest[2];
 
 		if (httpMethod.equals("GET")) {
-			File f = new File(rootDirectory.getAbsolutePath() + httpPath);
-			if (f.isDirectory() && f.exists()) {
-				f = new File(rootDirectory.getAbsolutePath() + httpPath + index);
+			String requestedPath = rootDirectory.getAbsolutePath() + httpPath;
+			String finalPath = "";
+
+			if (Files.isDirectory(Paths.get(requestedPath))) {
+				finalPath = requestedPath + INDEX_HTML;
+				if (!Files.isReadable(Paths.get(finalPath))) {
+					finalPath = requestedPath + INDEX_HTM;
+					if (!Files.isReadable(Paths.get(finalPath))) {
+						System.err.println("ERR 404 TEMP");
+					}
+				}
 			}
-			else if (f.isFile() && f.exists()) {
-				// OK
+			else if (Files.isReadable(Paths.get(requestedPath))) {
+				finalPath = requestedPath;
 			}
 			else {
 				// 404 not found
 				System.err.println("Resource not found");
 				System.exit(1);
 			}
+			File f = new File(finalPath);
+
 			System.out.println(f.getAbsolutePath());
 			try {
-				byte[] aLottaBytes = (ResponseBuilder.generateHeader("html", (int) f.length())).getBytes();
+				byte[] aLottaBytes = (ResponseBuilder.generateHeader("html", StatusCode.SUCCESS_200_OK, (int) f.length())).getBytes();
 				output.write(aLottaBytes);
 				output.write(Files.readAllBytes(Paths.get(f.getAbsolutePath())));
 			}

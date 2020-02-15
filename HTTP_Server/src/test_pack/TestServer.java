@@ -40,7 +40,7 @@ public class TestServer {
 				t.start();
 			}
 		}
-		catch (IOException e) {
+		catch (Exception e) {
 			System.err.println("Thread creation failed: " + e.getMessage());
 		}
 	}

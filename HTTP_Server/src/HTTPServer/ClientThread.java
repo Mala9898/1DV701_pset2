@@ -40,11 +40,13 @@ public class ClientThread implements Runnable{
             char[] requestBuffer = new char[REQUEST_BUFFER_LEN];
             int totalBytesRead = inputStream.read(requestBuffer, 0, REQUEST_BUFFER_LEN);
 
+            RequestParser test = new RequestParser(requestBuffer, totalBytesRead);
+
             // todo: send "414 URI Too Long" error if totalBytesRead >= 4096:
             String requestString = new String(requestBuffer, 0, totalBytesRead);
 
             int indexOfPayloadStart = requestString.indexOf("\r\n\r\n");
-            System.out.println("\t PAYLOAD START: "+indexOfPayloadStart);
+            System.out.println("\t PAYLOAD START: " + indexOfPayloadStart);
 
             // split by \r\n. additionally, "+" removes empty lines.
             // https://stackoverflow.com/questions/454908/split-java-string-by-new-line
