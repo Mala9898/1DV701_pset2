@@ -88,7 +88,6 @@ public class ClientThread implements Runnable{
 
             Arrays.stream(firstLineParameters).forEach(line -> System.out.println("\tfirstLine:{"+line+"}"));
 
-            ResponseBuilder responseBuilder = new ResponseBuilder();
 
 
             if(file.canRead()) {
@@ -100,7 +99,7 @@ public class ClientThread implements Runnable{
                 String contentType = URLConnection.guessContentTypeFromName(file.getName());
                 System.out.println("MIME: "+contentType);
 
-                String header = responseBuilder.generateHeader(contentType, contentBytes.length);
+                String header = ResponseBuilder.generateHeader(contentType, contentBytes.length);
                 System.out.println("\n\nheader: \n"+header);
 
                 outputStream.write(header);

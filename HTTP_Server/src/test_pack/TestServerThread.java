@@ -20,10 +20,12 @@ import java.util.ArrayList;
 public class TestServerThread implements Runnable {
 	private Socket socket;
 	private String index = "index.html";
+	private File rootDirectory;
 	ArrayList<String[]> fullRequest = new ArrayList<>();
 
 	// Constructor
-	public TestServerThread(Socket s) {
+	public TestServerThread(Socket s, File f) {
+		rootDirectory = f;
 		socket = s;
 	}
 
@@ -58,15 +60,30 @@ public class TestServerThread implements Runnable {
 		}
 
 		String[] mainRequest = fullRequest.get(0);
-		if (mainRequest[0].equals("GET")) {
-			File f = new File("HTTP_Server\\public\\index.html");
+		String httpMethod = mainRequest[0];
+		String httpPath = mainRequest[1];
+		String httpVersion = mainRequest[2];
+
+		if (httpMethod.equals("GET")) {
+			File f = new File(rootDirectory.getAbsolutePath() + httpPath);
+			if (f.isDirectory() && f.exists()) {
+				f = new File(rootDirectory.getAbsolutePath() + httpPath + index);
+			}
+			else if (f.isFile() && f.exists()) {
+				// OK
+			}
+			else {
+				// 404 not found
+				System.err.println("Resource not found");
+				System.exit(1);
+			}
 			System.out.println(f.getAbsolutePath());
 			try {
 				byte[] aLottaBytes = (ResponseBuilder.generateHeader("html", (int) f.length())).getBytes();
 				output.write(aLottaBytes);
 				output.write(Files.readAllBytes(Paths.get(f.getAbsolutePath())));
 			}
-			catch (IOException e) {
+			catch (Exception e) {
 				e.printStackTrace();
 			}
 		}

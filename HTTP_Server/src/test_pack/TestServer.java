@@ -17,7 +17,7 @@ public class TestServer {
 		if (args.length != 1) {
 			System.err.println("usage: specify root directory");
 			System.err.println("Continuing using default directory...");
-			rootDir = new File("");
+			rootDir = getValidatedDir("HTTP_Server\\public");
 		}
 		else {
 			rootDir = getValidatedDir(args[0]);
@@ -36,7 +36,7 @@ public class TestServer {
 		System.out.println("Started server, listening on port: " + server.getLocalPort());
 		try {
 			while (true) {
-				Thread t = new Thread(new TestServerThread(server.accept()));
+				Thread t = new Thread(new TestServerThread(server.accept(), rootDir));
 				t.start();
 			}
 		}
