@@ -6,16 +6,23 @@
 
 package test_pack;
 
+import HTTPServer.ResponseBuilder;
+
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 
 public class TestServerThread implements Runnable {
 	private Socket socket;
+	private String index = "index.html";
 	ArrayList<String[]> fullRequest = new ArrayList<>();
 
+	// Constructor
 	public TestServerThread(Socket s) {
 		socket = s;
 	}
@@ -32,17 +39,12 @@ public class TestServerThread implements Runnable {
 			System.err.println("Write or read pipes broke on creation: " + e.getMessage());
 			System.exit(1);
 		}
-		byte[] bytes = new byte[2048];
-		StringBuilder lineFromClient = new StringBuilder();
-		boolean finishedReading = false;
-		String completeMessage = "";
 		try {
-			MainLoop:
 			while (true) {
 				String[] requestPart = getRequestLine(input);
 				if (requestPart.length == 1 && requestPart[0].equals("")) {
 					System.out.println("Finished getting header");
-					finishedReading = true;
+					// When header is fully 'gotten', get out of this loop.
 					break;
 				}
 				else {
@@ -53,6 +55,31 @@ public class TestServerThread implements Runnable {
 		catch (IOException e) {
 			System.err.println("Connection failed, reason: " + e.getMessage());
 			System.err.println("Closing connection: " + socket.getInetAddress());
+		}
+
+		String[] mainRequest = fullRequest.get(0);
+		if (mainRequest[0].equals("GET")) {
+			File f = new File("HTTP_Server\\public\\index.html");
+			System.out.println(f.getAbsolutePath());
+			try {
+				byte[] aLottaBytes = (ResponseBuilder.generateHeader("html", (int) f.length())).getBytes();
+				output.write(aLottaBytes);
+				output.write(Files.readAllBytes(Paths.get(f.getAbsolutePath())));
+			}
+			catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+
+
+		// On termination of thread
+		System.out.println("Finished serving content to: " + socket.getInetAddress().getHostAddress() + ":" + socket.getPort());
+		System.out.println("Closing connection");
+		try {
+			socket.close();
+		}
+		catch (IOException e) {
+			System.err.println("Error during socket termination: " + e.getMessage());
 		}
 
 
