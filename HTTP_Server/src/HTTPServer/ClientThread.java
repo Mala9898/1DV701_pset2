@@ -3,6 +3,9 @@ package HTTPServer;
 import java.io.*;
 import java.net.Socket;
 import java.net.URLConnection;
+import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -40,9 +43,12 @@ public class ClientThread implements Runnable{
             OutputStream rawOutputStream = new BufferedOutputStream(clientSocket.getOutputStream());
             Writer outputStream = new OutputStreamWriter(rawOutputStream);
 
-            Reader inputStream = new InputStreamReader(clientSocket.getInputStream(), "US-ASCII");
+//            Reader inputStream = new InputStreamReader(clientSocket.getInputStream(), "UTF-8");
+//            Reader inputStream = new InputStreamReader(clientSocket.getInputStream(), "US-ASCII");
 
-            char[] requestBuffer = new char[REQUEST_BUFFER_LEN];
+            InputStream inputStream = clientSocket.getInputStream();
+
+            byte[] requestBuffer = new byte[REQUEST_BUFFER_LEN];
             int totalBytesRead = inputStream.read(requestBuffer, 0, REQUEST_BUFFER_LEN);
             System.out.println("BYTES READ: "+totalBytesRead);
 //            RequestParser test = new RequestParser(requestBuffer, totalBytesRead);
@@ -156,7 +162,7 @@ public class ClientThread implements Runnable{
 
             if(requestMethod.compareTo("POST") == 0) {
                 System.out.println("GOT POST REQUEST!");
-                char[] payloadSubarray = Arrays.copyOfRange(requestBuffer, payloadStart+2, payloadEnd);
+                byte[] payloadSubarray = Arrays.copyOfRange(requestBuffer, payloadStart+2, payloadEnd+1);
                 String cc = new String(payloadSubarray, 0, payloadSubarray.length);
                 byte[] payloadBytesArray = cc.getBytes();
 //                String decoded = Base64.getDecoder().decode(cc);
@@ -164,10 +170,18 @@ public class ClientThread implements Runnable{
 //                byte[] decodedImage = Base64.getDecoder().decode(extractedPayload.getBytes(StandardCharsets.UTF_8));
                 System.out.println("decoded! ");
                 Path writeDestination = Paths.get(servingDirectory+"/FINALE.png");
+
                 try {
-                    Files.write(writeDestination, extractedPayload.getBytes());
-                } catch (Exception e) {
-                    e.printStackTrace();
+                    OutputStream outputStream1 = new FileOutputStream(servingDirectory.getAbsolutePath()+"/FINALE.png");
+                    OutputStream outputStreamWriter = new FileOutputStream(servingDirectory.getAbsolutePath()+"/FINALE.png");//FileOutputStream(outputStream1, "UTF-8");
+//                    byte[] toSendOff = toBytes(payloadSubarray);
+                    outputStream1.write(payloadSubarray);
+//                    File toWriteFile = new File(servingDirectory.getAbsolutePath()+"/FINALE.png");
+//                    OutputStreamWriter stream = new FileOutputStream(toWriteFile);
+//                    stream.write(payloadSubarray);
+                } catch (Exception eee) {
+                    System.out.println("Somethign went wrong: "+eee.getMessage());
+                    eee.printStackTrace();
                 }
 
 
@@ -247,6 +261,16 @@ public class ClientThread implements Runnable{
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    // CREDIT: https://stackoverflow.com/questions/5513144/converting-char-to-byte
+    byte[] toBytes(char[] chars) {
+        CharBuffer charBuffer = CharBuffer.wrap(chars);
+        ByteBuffer byteBuffer = Charset.forName("UTF-8").encode(charBuffer);
+        byte[] bytes = Arrays.copyOfRange(byteBuffer.array(),
+                byteBuffer.position(), byteBuffer.limit());
+        Arrays.fill(byteBuffer.array(), (byte) 0); // clear sensitive data
+        return bytes;
     }
 }
 
