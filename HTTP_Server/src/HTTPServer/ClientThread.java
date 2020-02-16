@@ -73,7 +73,6 @@ public class ClientThread implements Runnable{
             Pattern pattern = Pattern.compile( "^(\\r\\n|\\r|\\n)*$", Pattern.MULTILINE);
 
             Matcher matcher = pattern.matcher(requestString);
-            System.out.println("\t groupcount: "+matcher.groupCount());
             MatchResult matchResult = matcher.toMatchResult();
 
             int headerStart = 0;
@@ -95,10 +94,8 @@ public class ClientThread implements Runnable{
             String extractedHeader = requestString.substring(0, headerEnd);
             String extractedPayload = requestString.substring(payloadStart, payloadEnd);
 
-            System.out.printf(" header {%s} \n payload {%s} %n", extractedHeader, extractedPayload);
-//            Matcher matcher = ptrn.matcher("June 24, August 9, Dec 12");
-
             // GET REQUEST LINE
+            // Request-Line   = Method SP Request-URI SP HTTP-Version CRLF
             Pattern patternRequestline = Pattern.compile( "^(GET|POST|HEAD|PUT)\\s+([\\/\\w?=%.]*)\\s+(HTTP\\/.*)");
             Matcher matcher2 = patternRequestline.matcher(extractedHeader);
             String[] firstLineParameters = {"","",""};
@@ -118,9 +115,6 @@ public class ClientThread implements Runnable{
             Matcher matcher3 = patternContentType.matcher(extractedHeader);
             String requestContentType = "";
             while (matcher3.find()) {
-//                System.err.println(String.format("\tCONTENT Match: %s at index [%d, %d]",
-//                        matcher3.group(), matcher3.start(), matcher3.end()));
-//                System.out.printf("group count: %d %n", matcher3.groupCount());
                 if(matcher3.groupCount() == 2) {
                     requestContentType = matcher3.group(2);
                     break;
@@ -147,9 +141,6 @@ public class ClientThread implements Runnable{
 //            String reqLine = matcherRequestline.group();
 //            Arrays.stream(requestLines).forEach(line -> System.out.println("line:{"+line+"}"));
 
-            // Request-Line   = Method SP Request-URI SP HTTP-Version CRLF
-            // SOURCE: https://tools.ietf.org/html/rfc2616#page-35
-//            String[] firstLineParameters = {"GET", "/testFolder", "HTTP/1.1"};//requestLines[0].split(" ");
 
             if(firstLineParameters.length < 3){
                 // TODO send 400 Bad Request
@@ -161,43 +152,22 @@ public class ClientThread implements Runnable{
 //            Arrays.stream(firstLineParameters).forEach(line -> System.out.println("\tfirstLine:{"+line+"}"));
 
             if(requestMethod.compareTo("POST") == 0) {
+                // TODO: implement x-www-form-urlencoded, multi-part form, binary data.
+                // TODO: need to implement the RequestParser to get Content-Length etc...
+                System.out.println("client sent a POST");
                 System.out.println("GOT POST REQUEST!");
                 byte[] payloadSubarray = Arrays.copyOfRange(requestBuffer, payloadStart+2, payloadEnd+1);
-                String cc = new String(payloadSubarray, 0, payloadSubarray.length);
-                byte[] payloadBytesArray = cc.getBytes();
-//                String decoded = Base64.getDecoder().decode(cc);
-
-//                byte[] decodedImage = Base64.getDecoder().decode(extractedPayload.getBytes(StandardCharsets.UTF_8));
-                System.out.println("decoded! ");
                 Path writeDestination = Paths.get(servingDirectory+"/FINALE.png");
 
                 try {
+                    // todo close this stream once done
                     OutputStream outputStream1 = new FileOutputStream(servingDirectory.getAbsolutePath()+"/FINALE.png");
                     OutputStream outputStreamWriter = new FileOutputStream(servingDirectory.getAbsolutePath()+"/FINALE.png");//FileOutputStream(outputStream1, "UTF-8");
-//                    byte[] toSendOff = toBytes(payloadSubarray);
                     outputStream1.write(payloadSubarray);
-//                    File toWriteFile = new File(servingDirectory.getAbsolutePath()+"/FINALE.png");
-//                    OutputStreamWriter stream = new FileOutputStream(toWriteFile);
-//                    stream.write(payloadSubarray);
                 } catch (Exception eee) {
-                    System.out.println("Somethign went wrong: "+eee.getMessage());
+                    System.out.println("Something went wrong: "+eee.getMessage());
                     eee.printStackTrace();
                 }
-
-
-//                try {
-////                    File toWriteFile = new File(servingDirectory.getAbsolutePath()+"/FINALE.png");
-////                    OutputStream stream = new FileOutputStream(toWriteFile);
-////                    stream.write(toWrite);
-//                } catch (Exception eee) {
-//                    System.out.println("Somethign went wrong: "+eee.getMessage());
-//                    eee.printStackTrace();
-//                }
-//                try{
-//                    Files.writeString(Paths.get(servingDirectory+"/FINALE.jpeg"), Base64.getDecoder().decode(extractedPayload));
-//                } catch (IOException ee) {
-//                    System.err.println("Couldn't write file: "+ee.getMessage());
-//                }
 
             }
             if(requestMethod.compareTo("GET") == 0) {
@@ -225,7 +195,7 @@ public class ClientThread implements Runnable{
                     }
                 }
                 System.out.println("final file:" +file.toPath());
-                // DEPRECATED: ResponseBuilder is now static
+
 //                ResponseBuilder responseBuilder = new ResponseBuilder();
 
                 if(file.canRead()) {
@@ -251,52 +221,9 @@ public class ClientThread implements Runnable{
                 }
             }
 
-            else if(requestMethod.compareTo("POST") == 0) {
-                // TODO: implement x-www-form-urlencoded, multi-part form, binary data.
-                // TODO: need to implement the RequestParser to get Content-Length etc...
-//                File clientUpload = new File("book.jpg");
-                System.out.println("client sent a POST");
-            }
-
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
 }
-
-
-// ----- experiment
-//            StringBuilder line = new StringBuilder();
-//
-//            int readInt = 0;
-//            int lineStage = 0; // 0 == null; 1 = \r; 2 = \r\n; 3 = \r\n\r; 4 = \r\n\r\n
-//            for (int i = 0; i < totalBytesRead; i++) {
-//                switch ((char)requestBuffer[i]) {
-//                    case '\n':
-//                        if(lineStage == 1) {
-//                            lineStage += 1;
-//                        } else if(lineStage == 3) {
-//                            // END OF HEADER DETECTED
-//                            lineStage = 0; // reset tracker
-//
-//
-//                        }
-//                        line.append("\\n");
-//                        break;
-//                    case '\r':
-//                        if(lineStage == 0) {
-//                            lineStage += 1;
-//                        } else if(lineStage == 2) {
-//                            lineStage +=1;
-//                        }
-//                        line.append("\\r");
-//                        break;
-//                    default:
-//                        line.append((char)requestBuffer[i]);
-//
-//                }
-//            }
-//            System.out.println(line);
-
-//------- end experiment
