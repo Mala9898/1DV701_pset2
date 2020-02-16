@@ -219,6 +219,9 @@ public class ClientThread implements Runnable{
                 } else {
                     System.err.println("CANNOT READ FILE");
                 }
+                inputStream.close();
+                outputStream.close();
+                rawOutputStream.close();
             }
 
         } catch (IOException e) {
