@@ -99,7 +99,7 @@ public class ClientThread implements Runnable{
 //            Matcher matcher = ptrn.matcher("June 24, August 9, Dec 12");
 
             // GET REQUEST LINE
-            Pattern patternRequestline = Pattern.compile( "^(GET|POST|HEAD|PUT)\\s+([\\/\\w?=%]*)\\s+(HTTP\\/.*)");
+            Pattern patternRequestline = Pattern.compile( "^(GET|POST|HEAD|PUT)\\s+([\\/\\w?=%.]*)\\s+(HTTP\\/.*)");
             Matcher matcher2 = patternRequestline.matcher(extractedHeader);
             String[] firstLineParameters = {"","",""};
             while (matcher2.find()) {
@@ -263,15 +263,6 @@ public class ClientThread implements Runnable{
         }
     }
 
-    // CREDIT: https://stackoverflow.com/questions/5513144/converting-char-to-byte
-    byte[] toBytes(char[] chars) {
-        CharBuffer charBuffer = CharBuffer.wrap(chars);
-        ByteBuffer byteBuffer = Charset.forName("UTF-8").encode(charBuffer);
-        byte[] bytes = Arrays.copyOfRange(byteBuffer.array(),
-                byteBuffer.position(), byteBuffer.limit());
-        Arrays.fill(byteBuffer.array(), (byte) 0); // clear sensitive data
-        return bytes;
-    }
 }
 
 
