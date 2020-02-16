@@ -40,8 +40,6 @@ public class ClientThread implements Runnable{
             char[] requestBuffer = new char[REQUEST_BUFFER_LEN];
             int totalBytesRead = inputStream.read(requestBuffer, 0, REQUEST_BUFFER_LEN);
 
-            RequestParser test = new RequestParser(requestBuffer, totalBytesRead);
-
             // todo: send "414 URI Too Long" error if totalBytesRead >= 4096:
             String requestString = new String(requestBuffer, 0, totalBytesRead);
 

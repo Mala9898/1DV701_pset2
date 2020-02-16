@@ -10,13 +10,13 @@ import java.sql.Connection;
  * TODO: implement GET, HEAD, POST, PUT
  */
 public class RequestParser {
-	private char[] requestChars;
+	private byte[] requestBytes;
 	private String requestFull;
 	private String[] requestLines;
 	private int payloadStartIndex;
-	private int length;
 
 	private String[] httpMain = null;
+
 	private String userAgent;
 	private String host;
 	// TODO - Figure out which of these are actually required.
@@ -24,10 +24,10 @@ public class RequestParser {
 	private String contentType;
 	private String contentLength;
 
-	public RequestParser(char[] req, int len) {
+	public RequestParser(byte[] req) {
 		// Trim unnecessary variables as time goes on
-		requestChars = req;
-		requestFull = new String(req);
+		requestBytes = req;
+		requestFull = new String(requestBytes);
 
 		// Split on CRLF, remove whitespace.
 		requestLines = requestFull.split("[\\r\\n]+");
@@ -35,7 +35,6 @@ public class RequestParser {
 		// TODO - Figure out if payload really starts there
 		// TODO - Figure out if this is actually needed for anything
 		payloadStartIndex = requestFull.indexOf("\r\n\r\n") + 4;
-		length = len;
 
 		processData();
 
@@ -48,8 +47,7 @@ public class RequestParser {
 
 	// When you want to know how much data the client wants to PUT or POST.
 	public int getContentLength() {
-		return length;
-
+		return Integer.parseInt(contentLength);
 	}
 
 	// Get host that client wants to connect to
