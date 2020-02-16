@@ -6,6 +6,7 @@
 
 package test_pack;
 
+import HTTPServer.RequestParser;
 import HTTPServer.ResponseBuilder;
 import HTTPServer.StatusCode;
 
@@ -13,6 +14,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.ref.ReferenceQueue;
 import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -43,31 +45,18 @@ public class TestServerThread implements Runnable {
 			System.err.println("Write or read pipes broke on creation: " + e.getMessage());
 			System.exit(1);
 		}
+		RequestParser requestParser = null;
 		try {
-			while (true) {
-				String[] requestPart = getRequestLine(input);
-				if (requestPart.length == 1 && requestPart[0].equals("")) {
-					System.out.println("Finished getting header");
-					// When header is fully 'gotten', get out of this loop.
-					break;
-				}
-				else {
-					fullRequest.add(requestPart);
-				}
-			}
+			requestParser = new RequestParser(getRequest(input));
+			System.out.println("Finished getting header");
 		}
 		catch (IOException e) {
 			System.err.println("Connection failed, reason: " + e.getMessage());
 			System.err.println("Closing connection: " + socket.getInetAddress());
 		}
 
-		String[] mainRequest = fullRequest.get(0);
-		String httpMethod = mainRequest[0];
-		String httpPath = mainRequest[1];
-		String httpVersion = mainRequest[2];
-
-		if (httpMethod.equals("GET")) {
-			String requestedPath = rootDirectory.getAbsolutePath() + httpPath;
+		if (requestParser.getMethod().equals("GET")) {
+			String requestedPath = rootDirectory.getAbsolutePath() + requestParser.getPathRequest();
 			String finalPath = "";
 
 			if (Files.isDirectory(Paths.get(requestedPath))) {
@@ -85,7 +74,6 @@ public class TestServerThread implements Runnable {
 			else {
 				// 404 not found
 				System.err.println("Resource not found");
-				System.exit(1);
 			}
 			File f = new File(finalPath);
 
@@ -93,9 +81,11 @@ public class TestServerThread implements Runnable {
 			try {
 				byte[] aLottaBytes = (ResponseBuilder.generateHeader("html", StatusCode.SUCCESS_200_OK, (int) f.length())).getBytes();
 				output.write(aLottaBytes);
-				output.write(Files.readAllBytes(Paths.get(f.getAbsolutePath())));
+				if (f.canRead()) {
+					output.write(Files.readAllBytes(Paths.get(f.getAbsolutePath())));
+				}
 			}
-			catch (Exception e) {
+			catch (IOException e) {
 				e.printStackTrace();
 			}
 		}
@@ -114,30 +104,43 @@ public class TestServerThread implements Runnable {
 
 	}
 
-	private String[] getRequestLine(InputStream in) throws IOException {
-		int read;
-		StringBuilder lineFromClient = new StringBuilder();
-		String completeMessage;
+	private byte[] getRequest(InputStream in) throws IOException {
+		ArrayList<Byte> bytes = new ArrayList<>();
+		byte read;
 		boolean first = true;
+		boolean duo = false;
 		while (true) {
-			if ((read = in.read()) != -1) {
+			if ((read = (byte) in.read()) != -1) {
 				System.out.print((char) read);
+				bytes.add(read);
 				if (read == '\r' || read == '\n') {
 					if (first) {
 						first = false;
-						continue;
 					}
-					completeMessage = lineFromClient.toString();
-					// Split on whitespace
-					return completeMessage.split("\\s+");
+					else {
+						if (duo) {
+							break;
+						}
+						duo = true;
+						first = true;
+					}
 				}
 				else {
-					lineFromClient.append((char) read);
+					duo = false;
+					first = true;
 				}
 			}
 			else {
 				throw new IOException("Host closed connection");
 			}
 		}
+		// Why 0? Compiler wants it that way, doesn't actually try to stuff everything into an empty array.
+		Byte[] objectBytes = bytes.toArray(new Byte[0]);
+		byte[] bytesToReturn = new byte[objectBytes.length];
+		int i = 0;
+		for (Byte b : objectBytes) {
+			bytesToReturn[i++] = b;
+		}
+		return bytesToReturn;
 	}
 }

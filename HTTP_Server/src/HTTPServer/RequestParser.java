@@ -19,13 +19,13 @@ Connection: keep-alive
 <body starts here, if any>   | Body
  */
 public class RequestParser {
-	private char[] requestChars;
+	private byte[] requestBytes;
 	private String requestFull;
 	private String[] requestLines;
 	private int payloadStartIndex;
-	private int length;
 
 	private String[] httpMain = null;
+
 	private String userAgent;
 	private String host;
 	// TODO - Figure out which of these are actually required.
@@ -33,10 +33,10 @@ public class RequestParser {
 	private String contentType;
 	private String contentLength;
 
-	public RequestParser(char[] req, int len) {
+	public RequestParser(byte[] req) {
 		// Trim unnecessary variables as time goes on
-		requestChars = req;
-		requestFull = new String(req);
+		requestBytes = req;
+		requestFull = new String(requestBytes);
 
 		// Split on CRLF, remove whitespace.
 		requestLines = requestFull.split("[\\r\\n]+");
@@ -44,7 +44,6 @@ public class RequestParser {
 		// TODO - Figure out if payload really starts there
 		// TODO - Figure out if this is actually needed for anything
 		payloadStartIndex = requestFull.indexOf("\r\n\r\n") + 4;
-		length = len;
 
 		processData();
 
@@ -57,8 +56,7 @@ public class RequestParser {
 
 	// When you want to know how much data the client wants to PUT or POST.
 	public int getContentLength() {
-		return length;
-
+		return Integer.parseInt(contentLength);
 	}
 
 	// Get host that client wants to connect to
@@ -89,30 +87,30 @@ public class RequestParser {
 		String[] processing;
 		boolean first = true;
 		for (String s : requestLines) {
-			processing = s.split("\\s+");
+			processing = s.split(":");
 			if (first) {
 				httpMain = processing;
 				first = false;
 			}
 			else {
 				// User agent is split in a more sophisticated way, fix!
-				if (processing[0].equals("User-Agent:")) {
+				if (processing[0].equalsIgnoreCase("User-Agent")) {
 					userAgent = processing[1];
 				}
-				else if (processing[0].equals("Host:")) {
+				else if (processing[0].equalsIgnoreCase("Host")) {
 					host = processing[1];
 				}
-				else if (processing[0].equals("Connection:")) {
+				else if (processing[0].equalsIgnoreCase("Connection")) {
 					connection = processing[1];
 				}
-				else if (processing[0].equals("Content-type:")) {
+				else if (processing[0].equalsIgnoreCase("Content-Type")) {
 					contentType = processing[1];
 				}
-				else if (processing[0].equals("Content-length:")) {
+				else if (processing[0].equalsIgnoreCase("Content-Length")) {
 					contentLength = processing[1];
 				}
 				else {
-					System.out.println("Unknown: " + processing[0]);
+					System.out.println("Not supported: " + processing[0]);
 				}
 
 				// TODO - Payload start, Accept (MIME types)
