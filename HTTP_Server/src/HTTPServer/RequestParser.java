@@ -9,6 +9,15 @@ import java.sql.Connection;
  * <p>
  * TODO: implement GET, HEAD, POST, PUT
  */
+
+/* what a HTTP looks like:
+
+GET /uri HTTP/1.1            | STATUS LINE
+Host: 127.0.0.1:4950         | Headers
+Connection: keep-alive
+
+<body starts here, if any>   | Body
+ */
 public class RequestParser {
 	private char[] requestChars;
 	private String requestFull;
@@ -99,7 +108,7 @@ public class RequestParser {
 				else if (processing[0].equals("Content-type:")) {
 					contentType = processing[1];
 				}
-				else if (processing[0].equals("Content-length;")) {
+				else if (processing[0].equals("Content-length:")) {
 					contentLength = processing[1];
 				}
 				else {

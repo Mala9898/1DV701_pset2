@@ -3,10 +3,18 @@ package HTTPServer;
 import java.io.*;
 import java.net.Socket;
 import java.net.URLConnection;
+import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.Base64;
+import java.util.regex.MatchResult;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * @author: Stanislaw J. Malec  (sm223ak@student.lnu.se)
@@ -35,28 +43,104 @@ public class ClientThread implements Runnable{
             OutputStream rawOutputStream = new BufferedOutputStream(clientSocket.getOutputStream());
             Writer outputStream = new OutputStreamWriter(rawOutputStream);
 
-            Reader inputStream = new InputStreamReader(clientSocket.getInputStream(), "US-ASCII");
+//            Reader inputStream = new InputStreamReader(clientSocket.getInputStream(), "UTF-8");
+//            Reader inputStream = new InputStreamReader(clientSocket.getInputStream(), "US-ASCII");
 
-            char[] requestBuffer = new char[REQUEST_BUFFER_LEN];
+            InputStream inputStream = clientSocket.getInputStream();
+
+            byte[] requestBuffer = new byte[REQUEST_BUFFER_LEN];
             int totalBytesRead = inputStream.read(requestBuffer, 0, REQUEST_BUFFER_LEN);
-
-            RequestParser test = new RequestParser(requestBuffer, totalBytesRead);
+            System.out.println("BYTES READ: "+totalBytesRead);
+//            RequestParser test = new RequestParser(requestBuffer, totalBytesRead);
 
             // todo: send "414 URI Too Long" error if totalBytesRead >= 4096:
             String requestString = new String(requestBuffer, 0, totalBytesRead);
 
-            int indexOfPayloadStart = requestString.indexOf("\r\n\r\n");
-            System.out.println("\t PAYLOAD START: " + indexOfPayloadStart);
+//            int indexOfPayloadStart = requestString.indexOf("\r\n\r\n");
+//            System.out.println("\t PAYLOAD START: " + indexOfPayloadStart);
 
             // split by \r\n. additionally, "+" removes empty lines.
             // https://stackoverflow.com/questions/454908/split-java-string-by-new-line
-            String[] requestLines = requestString.split("[\\r\\n]+");
+//            String[] requestLines = requestString.split("[\\r\\n]+");
+//            String[] requestLines = requestString.replace(" ", "").split("[\\s]");
+//            String[] requestLines = requestString.split("[\\s]");
+            String[] requestLines = requestString.split("[\\r\\n\\r\\n]");
 
-            Arrays.stream(requestLines).forEach(line -> System.out.println("line:{"+line+"}"));
+//            Pattern ptrn = Pattern.compile("([a-zA-Z]+) (\\d+)");
+//            Pattern pattern = Pattern.compile("(.*)\\s\\s(.*)");
+//            Pattern pattern = Pattern.compile(".*^(\\r\\n\\r\\n)$.*");
+//            Pattern pattern = Pattern.compile( "\\r\\n\\r\\n", Pattern.MULTILINE);
+            Pattern pattern = Pattern.compile( "^(\\r\\n|\\r|\\n)*$", Pattern.MULTILINE);
 
+            Matcher matcher = pattern.matcher(requestString);
+            MatchResult matchResult = matcher.toMatchResult();
+
+            int headerStart = 0;
+            int headerEnd = 0;
+            int payloadStart = 0;
+            int payloadEnd = 0;
+
+            boolean first = true;
+            while (matcher.find()) {
+                if(first) {
+                    headerEnd = matcher.start();
+                    payloadStart= matcher.start();
+                    payloadEnd = requestString.length();
+                    first = false;
+                }
+                System.out.println(String.format("Match: %s at index [%d, %d]",
+                        matcher.group(), matcher.start(), matcher.end()));
+            }
+            String extractedHeader = requestString.substring(0, headerEnd);
+            String extractedPayload = requestString.substring(payloadStart, payloadEnd);
+
+            // GET REQUEST LINE
             // Request-Line   = Method SP Request-URI SP HTTP-Version CRLF
-            // SOURCE: https://tools.ietf.org/html/rfc2616#page-35
-            String[] firstLineParameters = requestLines[0].split(" ");
+            Pattern patternRequestline = Pattern.compile( "^(GET|POST|HEAD|PUT)\\s+([\\/\\w?=%.]*)\\s+(HTTP\\/.*)");
+            Matcher matcher2 = patternRequestline.matcher(extractedHeader);
+            String[] firstLineParameters = {"","",""};
+            while (matcher2.find()) {
+                System.err.println(String.format("\tMatch: %s at index [%d, %d]",
+                        matcher2.group(), matcher2.start(), matcher2.end()));
+                System.out.printf("group count: %d %n", matcher2.groupCount());
+                if(matcher2.groupCount() == 3) {
+                    firstLineParameters[0]=matcher2.group(1);
+                    firstLineParameters[1]=matcher2.group(2);
+                    firstLineParameters[2]=matcher2.group(3);
+                }
+            }
+
+            // GET CONTENT TYPE
+            Pattern patternContentType = Pattern.compile( "^(Content-Type):\\s*([\\w\\/-]+)", Pattern.MULTILINE | Pattern.CASE_INSENSITIVE);
+            Matcher matcher3 = patternContentType.matcher(extractedHeader);
+            String requestContentType = "";
+            while (matcher3.find()) {
+                if(matcher3.groupCount() == 2) {
+                    requestContentType = matcher3.group(2);
+                    break;
+                }
+            }
+            System.out.printf("\t contenttype: {%s} %n", requestContentType);
+
+            // GET CONTENT LENGTH
+            Pattern patternContentLength = Pattern.compile( "^(Content-Length):\\s*([\\w\\/-]+)", Pattern.MULTILINE | Pattern.CASE_INSENSITIVE);
+            Matcher matcher4 = patternContentLength.matcher(extractedHeader);
+            int requestContentLength = 0;
+            while (matcher4.find()) {
+                if(matcher4.groupCount() == 2) {
+                    try {
+                        requestContentLength = Integer.parseInt(matcher4.group(2));
+                    } catch (NumberFormatException e) {
+                        // TODO send 4XX client error
+                    }
+                    break;
+                }
+            }
+            System.out.printf("\t content-length: {%s} %n", requestContentLength);
+
+//            String reqLine = matcherRequestline.group();
+//            Arrays.stream(requestLines).forEach(line -> System.out.println("line:{"+line+"}"));
+
 
             if(firstLineParameters.length < 3){
                 // TODO send 400 Bad Request
@@ -65,8 +149,27 @@ public class ClientThread implements Runnable{
             String requestMethod = firstLineParameters[0];
             String requestURI = firstLineParameters[1];
 
-            Arrays.stream(firstLineParameters).forEach(line -> System.out.println("\tfirstLine:{"+line+"}"));
+//            Arrays.stream(firstLineParameters).forEach(line -> System.out.println("\tfirstLine:{"+line+"}"));
 
+            if(requestMethod.compareTo("POST") == 0) {
+                // TODO: implement x-www-form-urlencoded, multi-part form, binary data.
+                // TODO: need to implement the RequestParser to get Content-Length etc...
+                System.out.println("client sent a POST");
+                System.out.println("GOT POST REQUEST!");
+                byte[] payloadSubarray = Arrays.copyOfRange(requestBuffer, payloadStart+2, payloadEnd+1);
+                Path writeDestination = Paths.get(servingDirectory+"/FINALE.png");
+
+                try {
+                    // todo close this stream once done
+                    OutputStream outputStream1 = new FileOutputStream(servingDirectory.getAbsolutePath()+"/FINALE.png");
+                    OutputStream outputStreamWriter = new FileOutputStream(servingDirectory.getAbsolutePath()+"/FINALE.png");//FileOutputStream(outputStream1, "UTF-8");
+                    outputStream1.write(payloadSubarray);
+                } catch (Exception eee) {
+                    System.out.println("Something went wrong: "+eee.getMessage());
+                    eee.printStackTrace();
+                }
+
+            }
             if(requestMethod.compareTo("GET") == 0) {
                 File file = new File(servingDirectory, requestURI);
 
@@ -92,7 +195,7 @@ public class ClientThread implements Runnable{
                     }
                 }
                 System.out.println("final file:" +file.toPath());
-                // DEPRECATED: ResponseBuilder is now static
+
 //                ResponseBuilder responseBuilder = new ResponseBuilder();
 
                 if(file.canRead()) {
@@ -118,15 +221,9 @@ public class ClientThread implements Runnable{
                 }
             }
 
-            else if(requestMethod.compareTo("POST") == 0) {
-                // TODO: implement x-www-form-urlencoded, multi-part form, binary data.
-                // TODO: need to implement the RequestParser to get Content-Length etc...
-//                File clientUpload = new File("book.jpg");
-                System.out.println("client sent a POST");
-            }
-
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
+
 }
