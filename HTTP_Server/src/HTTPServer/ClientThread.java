@@ -23,8 +23,8 @@ public class ClientThread implements Runnable{
 
     private Socket clientSocket;
     private File servingDirectory;
-    private final int REQUEST_BUFFER_LEN = 4096;
-//    private final int REQUEST_BUFFER_LEN = 90000;
+//    private final int REQUEST_BUFFER_LEN = 4096;
+    private final int REQUEST_BUFFER_LEN = 90000;
 
     public ClientThread(Socket clientSocket, File directory) {
         this.clientSocket = clientSocket;
@@ -42,7 +42,7 @@ public class ClientThread implements Runnable{
 
             char[] requestBuffer = new char[REQUEST_BUFFER_LEN];
             int totalBytesRead = inputStream.read(requestBuffer, 0, REQUEST_BUFFER_LEN);
-
+            System.out.println("BYTES READ: "+totalBytesRead);
 //            RequestParser test = new RequestParser(requestBuffer, totalBytesRead);
 
             // todo: send "414 URI Too Long" error if totalBytesRead >= 4096:
@@ -61,7 +61,8 @@ public class ClientThread implements Runnable{
 //            Pattern ptrn = Pattern.compile("([a-zA-Z]+) (\\d+)");
 //            Pattern pattern = Pattern.compile("(.*)\\s\\s(.*)");
 //            Pattern pattern = Pattern.compile(".*^(\\r\\n\\r\\n)$.*");
-            Pattern pattern = Pattern.compile( "\\r\\n\\r\\n", Pattern.MULTILINE);
+//            Pattern pattern = Pattern.compile( "\\r\\n\\r\\n", Pattern.MULTILINE);
+            Pattern pattern = Pattern.compile( "^(\\r\\n|\\r|\\n)*$", Pattern.MULTILINE);
 
             Matcher matcher = pattern.matcher(requestString);
             System.out.println("\t groupcount: "+matcher.groupCount());
@@ -72,15 +73,14 @@ public class ClientThread implements Runnable{
             int payloadStart = 0;
             int payloadEnd = 0;
 
-            int i = 0;
+            boolean first = true;
             while (matcher.find()) {
-                if(i == 0) {
+                if(first) {
                     headerEnd = matcher.start();
-                } else if(i == 1){
-                    payloadStart= matcher.end();
-                    payloadEnd = requestString.length()-1;
+                    payloadStart= matcher.start()+4;
+                    payloadEnd = requestString.length();
+                    first = false;
                 }
-                i++;
                 System.out.println(String.format("Match: %s at index [%d, %d]",
                         matcher.group(), matcher.start(), matcher.end()));
             }
@@ -90,7 +90,37 @@ public class ClientThread implements Runnable{
             System.out.printf(" header {%s} \n payload {%s} %n", extractedHeader, extractedPayload);
 //            Matcher matcher = ptrn.matcher("June 24, August 9, Dec 12");
 
-            Arrays.stream(requestLines).forEach(line -> System.out.println("line:{"+line+"}"));
+            // GET REQUEST LINE
+            Pattern patternRequestline = Pattern.compile( "^(GET|POST|HEAD|PUT)\\s+([\\/\\w?=%]*)\\s+(HTTP\\/.*)");
+            Matcher matcher2 = patternRequestline.matcher(extractedHeader);
+            while (matcher2.find()) {
+                System.err.println(String.format("\tMatch: %s at index [%d, %d]",
+                        matcher2.group(), matcher2.start(), matcher2.end()));
+                System.out.printf("group count: %d %n", matcher2.groupCount());
+                if(matcher2.groupCount() == 3) {
+                    System.out.printf("group 1: {%s} %n", matcher2.group(1));
+                    System.out.printf("group 2: {%s} %n", matcher2.group(2));
+                    System.out.printf("group 3: {%s} %n", matcher2.group(3));
+                }
+            }
+
+            // GET CONTENT TYPE
+            Pattern patternContentType = Pattern.compile( "^(Content-Type):\\s*([\\w\\/-]+)", Pattern.MULTILINE | Pattern.CASE_INSENSITIVE);
+            Matcher matcher3 = patternContentType.matcher(extractedHeader);
+            String requestContentType = "";
+            while (matcher3.find()) {
+//                System.err.println(String.format("\tCONTENT Match: %s at index [%d, %d]",
+//                        matcher3.group(), matcher3.start(), matcher3.end()));
+//                System.out.printf("group count: %d %n", matcher3.groupCount());
+                if(matcher3.groupCount() == 2) {
+                    requestContentType = matcher3.group(2);
+                    break;
+                }
+            }
+            System.out.printf("\t contenttype: {%s} %n", requestContentType);
+//            String reqLine = matcherRequestline.group();
+
+//            Arrays.stream(requestLines).forEach(line -> System.out.println("line:{"+line+"}"));
 
             // Request-Line   = Method SP Request-URI SP HTTP-Version CRLF
             // SOURCE: https://tools.ietf.org/html/rfc2616#page-35
