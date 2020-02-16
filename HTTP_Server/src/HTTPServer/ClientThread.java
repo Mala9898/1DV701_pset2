@@ -7,6 +7,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.regex.MatchResult;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * @author: Stanislaw J. Malec  (sm223ak@student.lnu.se)
@@ -20,8 +23,8 @@ public class ClientThread implements Runnable{
 
     private Socket clientSocket;
     private File servingDirectory;
-//    private final int REQUEST_BUFFER_LEN = 4096;
-    private final int REQUEST_BUFFER_LEN = 90000;
+    private final int REQUEST_BUFFER_LEN = 4096;
+//    private final int REQUEST_BUFFER_LEN = 90000;
 
     public ClientThread(Socket clientSocket, File directory) {
         this.clientSocket = clientSocket;
@@ -40,23 +43,58 @@ public class ClientThread implements Runnable{
             char[] requestBuffer = new char[REQUEST_BUFFER_LEN];
             int totalBytesRead = inputStream.read(requestBuffer, 0, REQUEST_BUFFER_LEN);
 
-            RequestParser test = new RequestParser(requestBuffer, totalBytesRead);
+//            RequestParser test = new RequestParser(requestBuffer, totalBytesRead);
 
             // todo: send "414 URI Too Long" error if totalBytesRead >= 4096:
             String requestString = new String(requestBuffer, 0, totalBytesRead);
 
-            int indexOfPayloadStart = requestString.indexOf("\r\n\r\n");
-            System.out.println("\t PAYLOAD START: " + indexOfPayloadStart);
+//            int indexOfPayloadStart = requestString.indexOf("\r\n\r\n");
+//            System.out.println("\t PAYLOAD START: " + indexOfPayloadStart);
 
             // split by \r\n. additionally, "+" removes empty lines.
             // https://stackoverflow.com/questions/454908/split-java-string-by-new-line
-            String[] requestLines = requestString.split("[\\r\\n]+");
+//            String[] requestLines = requestString.split("[\\r\\n]+");
+//            String[] requestLines = requestString.replace(" ", "").split("[\\s]");
+//            String[] requestLines = requestString.split("[\\s]");
+            String[] requestLines = requestString.split("[\\r\\n\\r\\n]");
+
+//            Pattern ptrn = Pattern.compile("([a-zA-Z]+) (\\d+)");
+//            Pattern pattern = Pattern.compile("(.*)\\s\\s(.*)");
+//            Pattern pattern = Pattern.compile(".*^(\\r\\n\\r\\n)$.*");
+            Pattern pattern = Pattern.compile( "\\r\\n\\r\\n", Pattern.MULTILINE);
+
+            Matcher matcher = pattern.matcher(requestString);
+            System.out.println("\t groupcount: "+matcher.groupCount());
+            MatchResult matchResult = matcher.toMatchResult();
+
+            int headerStart = 0;
+            int headerEnd = 0;
+            int payloadStart = 0;
+            int payloadEnd = 0;
+
+            int i = 0;
+            while (matcher.find()) {
+                if(i == 0) {
+                    headerEnd = matcher.start();
+                } else if(i == 1){
+                    payloadStart= matcher.end();
+                    payloadEnd = requestString.length()-1;
+                }
+                i++;
+                System.out.println(String.format("Match: %s at index [%d, %d]",
+                        matcher.group(), matcher.start(), matcher.end()));
+            }
+            String extractedHeader = requestString.substring(0, headerEnd);
+            String extractedPayload = requestString.substring(payloadStart, payloadEnd);
+
+            System.out.printf(" header {%s} \n payload {%s} %n", extractedHeader, extractedPayload);
+//            Matcher matcher = ptrn.matcher("June 24, August 9, Dec 12");
 
             Arrays.stream(requestLines).forEach(line -> System.out.println("line:{"+line+"}"));
 
             // Request-Line   = Method SP Request-URI SP HTTP-Version CRLF
             // SOURCE: https://tools.ietf.org/html/rfc2616#page-35
-            String[] firstLineParameters = requestLines[0].split(" ");
+            String[] firstLineParameters = {"GET", "/testFolder", "HTTP/1.1"};//requestLines[0].split(" ");
 
             if(firstLineParameters.length < 3){
                 // TODO send 400 Bad Request
@@ -65,7 +103,7 @@ public class ClientThread implements Runnable{
             String requestMethod = firstLineParameters[0];
             String requestURI = firstLineParameters[1];
 
-            Arrays.stream(firstLineParameters).forEach(line -> System.out.println("\tfirstLine:{"+line+"}"));
+//            Arrays.stream(firstLineParameters).forEach(line -> System.out.println("\tfirstLine:{"+line+"}"));
 
             if(requestMethod.compareTo("GET") == 0) {
                 File file = new File(servingDirectory, requestURI);
@@ -130,3 +168,39 @@ public class ClientThread implements Runnable{
         }
     }
 }
+
+
+// ----- experiment
+//            StringBuilder line = new StringBuilder();
+//
+//            int readInt = 0;
+//            int lineStage = 0; // 0 == null; 1 = \r; 2 = \r\n; 3 = \r\n\r; 4 = \r\n\r\n
+//            for (int i = 0; i < totalBytesRead; i++) {
+//                switch ((char)requestBuffer[i]) {
+//                    case '\n':
+//                        if(lineStage == 1) {
+//                            lineStage += 1;
+//                        } else if(lineStage == 3) {
+//                            // END OF HEADER DETECTED
+//                            lineStage = 0; // reset tracker
+//
+//
+//                        }
+//                        line.append("\\n");
+//                        break;
+//                    case '\r':
+//                        if(lineStage == 0) {
+//                            lineStage += 1;
+//                        } else if(lineStage == 2) {
+//                            lineStage +=1;
+//                        }
+//                        line.append("\\r");
+//                        break;
+//                    default:
+//                        line.append((char)requestBuffer[i]);
+//
+//                }
+//            }
+//            System.out.println(line);
+
+//------- end experiment
