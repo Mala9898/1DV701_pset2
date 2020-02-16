@@ -3,10 +3,12 @@ package HTTPServer;
 import java.io.*;
 import java.net.Socket;
 import java.net.URLConnection;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -125,9 +127,6 @@ public class ClientThread implements Runnable{
             Matcher matcher4 = patternContentLength.matcher(extractedHeader);
             int requestContentLength = 0;
             while (matcher4.find()) {
-//                System.err.println(String.format("\tCONTENT Match: %s at index [%d, %d]",
-//                        matcher3.group(), matcher3.start(), matcher3.end()));
-//                System.out.printf("group count: %d %n", matcher3.groupCount());
                 if(matcher4.groupCount() == 2) {
                     try {
                         requestContentLength = Integer.parseInt(matcher4.group(2));
@@ -156,6 +155,35 @@ public class ClientThread implements Runnable{
 //            Arrays.stream(firstLineParameters).forEach(line -> System.out.println("\tfirstLine:{"+line+"}"));
 
             if(requestMethod.compareTo("POST") == 0) {
+                System.out.println("GOT POST REQUEST!");
+                char[] payloadSubarray = Arrays.copyOfRange(requestBuffer, payloadStart+2, payloadEnd);
+                String cc = new String(payloadSubarray, 0, payloadSubarray.length);
+                byte[] payloadBytesArray = cc.getBytes();
+//                String decoded = Base64.getDecoder().decode(cc);
+
+//                byte[] decodedImage = Base64.getDecoder().decode(extractedPayload.getBytes(StandardCharsets.UTF_8));
+                System.out.println("decoded! ");
+                Path writeDestination = Paths.get(servingDirectory+"/FINALE.png");
+                try {
+                    Files.write(writeDestination, extractedPayload.getBytes());
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+
+
+//                try {
+////                    File toWriteFile = new File(servingDirectory.getAbsolutePath()+"/FINALE.png");
+////                    OutputStream stream = new FileOutputStream(toWriteFile);
+////                    stream.write(toWrite);
+//                } catch (Exception eee) {
+//                    System.out.println("Somethign went wrong: "+eee.getMessage());
+//                    eee.printStackTrace();
+//                }
+//                try{
+//                    Files.writeString(Paths.get(servingDirectory+"/FINALE.jpeg"), Base64.getDecoder().decode(extractedPayload));
+//                } catch (IOException ee) {
+//                    System.err.println("Couldn't write file: "+ee.getMessage());
+//                }
 
             }
             if(requestMethod.compareTo("GET") == 0) {
