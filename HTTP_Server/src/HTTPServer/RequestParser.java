@@ -80,30 +80,30 @@ public class RequestParser {
 		String[] processing;
 		boolean first = true;
 		for (String s : requestLines) {
-			processing = s.split("\\s+");
+			processing = s.split(":");
 			if (first) {
 				httpMain = processing;
 				first = false;
 			}
 			else {
 				// User agent is split in a more sophisticated way, fix!
-				if (processing[0].equals("User-Agent:")) {
+				if (processing[0].equalsIgnoreCase("User-Agent")) {
 					userAgent = processing[1];
 				}
-				else if (processing[0].equals("Host:")) {
+				else if (processing[0].equalsIgnoreCase("Host")) {
 					host = processing[1];
 				}
-				else if (processing[0].equals("Connection:")) {
+				else if (processing[0].equalsIgnoreCase("Connection")) {
 					connection = processing[1];
 				}
-				else if (processing[0].equals("Content-type:")) {
+				else if (processing[0].equalsIgnoreCase("Content-Type")) {
 					contentType = processing[1];
 				}
-				else if (processing[0].equals("Content-length;")) {
+				else if (processing[0].equalsIgnoreCase("Content-Length")) {
 					contentLength = processing[1];
 				}
 				else {
-					System.out.println("Unknown: " + processing[0]);
+					System.out.println("Not supported: " + processing[0]);
 				}
 
 				// TODO - Payload start, Accept (MIME types)
