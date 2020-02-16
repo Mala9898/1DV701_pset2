@@ -38,7 +38,7 @@ public class RequestParser {
 		requestBytes = req;
 		requestFull = new String(requestBytes);
 
-		// Split on CRLF, remove whitespace.
+		// Split on CRLF
 		requestLines = requestFull.split("[\\r\\n]+");
 
 		// TODO - Figure out if payload really starts there
@@ -88,7 +88,10 @@ public class RequestParser {
 		boolean first = true;
 		for (String s : requestLines) {
 			processing = s.split(":");
+			// On first line, ex GET / HTTP/1.1
+			// HTTP method is case sensitive!
 			if (first) {
+				processing = s.split("\\s+");
 				httpMain = processing;
 				first = false;
 			}
