@@ -3,18 +3,10 @@ package HTTPServer;
 import java.io.*;
 import java.net.Socket;
 import java.net.URLConnection;
-import java.nio.ByteBuffer;
-import java.nio.CharBuffer;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.regex.MatchResult;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.ArrayList;
 
 /**
  * @author: Stanislaw J. Malec  (sm223ak@student.lnu.se)
@@ -24,29 +16,28 @@ import java.util.regex.Pattern;
 
 // TODO: implement static serving
 
-public class ClientThread implements Runnable{
+public class ClientThread implements Runnable {
 
-    private Socket clientSocket;
-    private File servingDirectory;
-//    private final int REQUEST_BUFFER_LEN = 4096;
-    private final int REQUEST_BUFFER_LEN = 90000;
+	private Socket clientSocket;
+	private File servingDirectory;
+	//    private final int REQUEST_BUFFER_LEN = 4096;
+	private final int REQUEST_BUFFER_LEN = 90000;
 
-    public ClientThread(Socket clientSocket, File directory) {
-        this.clientSocket = clientSocket;
-        this.servingDirectory = directory;
-    }
+	public ClientThread(Socket clientSocket, File directory) {
+		this.clientSocket = clientSocket;
+		this.servingDirectory = directory;
+	}
 
-    @Override
-    public void run() {
-        try {
-            // create two output streams, one "raw" for sending binary data, and a Writer for sending ASCII (header) text
-            OutputStream rawOutputStream = new BufferedOutputStream(clientSocket.getOutputStream());
-            Writer outputStream = new OutputStreamWriter(rawOutputStream);
+	@Override
+	public void run() {
+		try {
+			// create two output streams, one "raw" for sending binary data, and a Writer for sending ASCII (header) text
+			OutputStream rawOutputStream = new BufferedOutputStream(clientSocket.getOutputStream());
+			Writer outputStream = new OutputStreamWriter(rawOutputStream);
+			InputStream inputStream = clientSocket.getInputStream();
+/*
 
-//            Reader inputStream = new InputStreamReader(clientSocket.getInputStream(), "UTF-8");
-//            Reader inputStream = new InputStreamReader(clientSocket.getInputStream(), "US-ASCII");
-
-            InputStream inputStream = clientSocket.getInputStream();
+        // TODO -- Shove all this into RequestParser
 
             byte[] requestBuffer = new byte[REQUEST_BUFFER_LEN];
             int totalBytesRead = inputStream.read(requestBuffer, 0, REQUEST_BUFFER_LEN);
@@ -150,49 +141,59 @@ public class ClientThread implements Runnable{
             String requestURI = firstLineParameters[1];
 
 //            Arrays.stream(firstLineParameters).forEach(line -> System.out.println("\tfirstLine:{"+line+"}"));
+*/
 
-            if(requestMethod.compareTo("POST") == 0) {
-                // TODO: implement x-www-form-urlencoded, multi-part form, binary data.
-                // TODO: need to implement the RequestParser to get Content-Length etc...
-                System.out.println("client sent a POST");
-                System.out.println("GOT POST REQUEST!");
-                byte[] payloadSubarray = Arrays.copyOfRange(requestBuffer, payloadStart+2, payloadEnd+1);
-                Path writeDestination = Paths.get(servingDirectory+"/FINALE.png");
+			RequestParser request = null;
+			try {
+				request = new RequestParser(getRequest(inputStream));
+			}
+			catch (IOException e) {
+				e.printStackTrace();
+				System.exit(1);
+			}
 
-                try {
-                    // todo close this stream once done
-                    OutputStream outputStream1 = new FileOutputStream(servingDirectory.getAbsolutePath()+"/FINALE.png");
-                    OutputStream outputStreamWriter = new FileOutputStream(servingDirectory.getAbsolutePath()+"/FINALE.png");//FileOutputStream(outputStream1, "UTF-8");
-                    outputStream1.write(payloadSubarray);
-                } catch (Exception eee) {
-                    System.out.println("Something went wrong: "+eee.getMessage());
-                    eee.printStackTrace();
-                }
+			if (request.getMethod().equals("POST")) {
+				// TODO: implement x-www-form-urlencoded, multi-part form, binary data.
+				// TODO: Detect content type that client is trying to send, this just shoves data into an image file.
 
-            }
-            if(requestMethod.compareTo("GET") == 0) {
-                File file = new File(servingDirectory, requestURI);
+				System.out.println("GOT POST REQUEST!");
+				byte[] payloadData = getContent(inputStream, request.getContentLength());
+				Path writeDestination = Paths.get(servingDirectory + "/FINALE.png");
 
-                // prevent "../../" hacks
-                // https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/io/File.html#getCanonicalPath()
-                //  "removes redundant names such as "." and ".." from the pathname,
-                //   resolving symbolic links (on UNIX platforms), and converting drive letters to a standard case (on Microsoft Windows platforms)."
-                if(!file.getCanonicalPath().startsWith(servingDirectory.getPath())){
-                    // todo send 400 bad request
-                }
+				// Try with resources is automatically closing.
+				try (OutputStream out = new FileOutputStream(servingDirectory.getAbsolutePath() + "/FINALE.png")) {
+					out.write(payloadData);
+				}
+				catch (Exception e) {
+					System.out.println("Something went wrong: " + e.getMessage());
+					e.printStackTrace();
+				}
 
-                if(Files.isDirectory(Paths.get(servingDirectory+requestURI))) {
-                    if(Files.isReadable(Paths.get(servingDirectory+requestURI + "/index.html"))){
+			}
+			if (request.getMethod().equals("GET")) {
+				File file = new File(servingDirectory, request.getPathRequest());
+
+				// prevent "../../" hacks
+				// https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/io/File.html#getCanonicalPath()
+				//  "removes redundant names such as "." and ".." from the pathname,
+				//   resolving symbolic links (on UNIX platforms), and converting drive letters to a standard case (on Microsoft Windows platforms)."
+				if (!file.getCanonicalPath().startsWith(servingDirectory.getPath())) {
+					// todo send 400 bad request
+				}
+
+				if (Files.isDirectory(Paths.get(servingDirectory + request.getPathRequest()))) {
+					if (Files.isReadable(Paths.get(servingDirectory + request.getPathRequest() + "/index.html"))) {
 //                    System.out.println("found index.html");
-                        file = new File(Paths.get(servingDirectory+requestURI+"/index.html").toString());
-                    }
-                    else if(Files.isReadable(Paths.get(servingDirectory+requestURI + "/index.htm"))){
+						file = new File(Paths.get(servingDirectory + request.getPathRequest() + "/index.html").toString());
+					}
+					else if (Files.isReadable(Paths.get(servingDirectory + request.getPathRequest() + "/index.htm"))) {
 //                    System.out.println("found index.htm");
-                        file = new File(Paths.get(servingDirectory+requestURI+"/index.htm").toString());
-                    } else {
-                        System.out.println("FOUND NOTHING! index.html");
-                        // todo: send "404 not found".... neither index.html nor index.htm was found. simply an empty directory.
-                    }
+						file = new File(Paths.get(servingDirectory + request.getPathRequest() + "/index.htm").toString());
+					}
+					else {
+						System.out.println("FOUND NOTHING! index.html");
+						// todo: send "404 not found".... neither index.html nor index.htm was found. simply an empty directory.
+					}
                 }
                 System.out.println("final file:" +file.toPath());
 
@@ -214,19 +215,74 @@ public class ClientThread implements Runnable{
                     outputStream.flush();
 
                     rawOutputStream.write(contentBytes);
-                    outputStream.flush();
+	                outputStream.flush();
 
-                } else {
-                    System.err.println("CANNOT READ FILE");
                 }
-                inputStream.close();
-                outputStream.close();
-                rawOutputStream.close();
-            }
+                else {
+	                System.err.println("CANNOT READ FILE");
+                }
+				inputStream.close();
+				outputStream.close();
+				rawOutputStream.close();
+			}
 
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
+		}
+		catch (IOException e) {
+			e.printStackTrace();
+		}
+		System.out.println("Thread terminating");
+	}
+
+	// TODO - Support if the content sent came in multiple chunks of TCP data, we do NOT have to support Transfer-Encoding: Chunked!!
+	private byte[] getContent(InputStream in, int contentLength) throws IOException {
+		byte[] test = new byte[contentLength];
+		in.read(test, 0, contentLength);
+		return test;
+	}
+
+	private byte[] getRequest(InputStream in) throws IOException {
+		ArrayList<Byte> bytes = new ArrayList<>();
+		byte read;
+		boolean first = true;
+		boolean duo = false;
+
+		while (true) {
+			if ((read = (byte) in.read()) != -1) {
+				System.out.print((char) read);
+				bytes.add(read);
+				if (read == '\r' || read == '\n') {
+					if (first) {
+						first = false;
+					}
+					else if (duo) {
+						break;
+					}
+					else {
+						duo = true;
+						first = true;
+					}
+				}
+				else {
+					duo = false;
+					first = true;
+				}
+			}
+			else {
+				throw new IOException("Host closed connection");
+			}
+		}
+		return byteConversion(bytes);
+	}
+
+	private byte[] byteConversion(ArrayList<Byte> bytesIn) {
+		// Why 0? Compiler wants it that way, doesn't actually try to stuff everything into an empty array.
+		Byte[] objectBytes = bytesIn.toArray(new Byte[0]);
+		byte[] primitiveReturnBytes = new byte[objectBytes.length];
+		int i = 0;
+		for (Byte b : objectBytes) {
+			primitiveReturnBytes[i++] = b;
+		}
+		return primitiveReturnBytes;
+	}
 
 }

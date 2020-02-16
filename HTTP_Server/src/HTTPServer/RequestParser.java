@@ -1,7 +1,5 @@
 package HTTPServer;
 
-import java.sql.Connection;
-
 /**
  * @author: Stanislaw J. Malec  (sm223ak@student.lnu.se)
  * @author: Love Samuelsson     (ls223qx@student.lnu.se)
@@ -22,16 +20,16 @@ public class RequestParser {
 	private byte[] requestBytes;
 	private String requestFull;
 	private String[] requestLines;
-	private int payloadStartIndex;
 
 	private String[] httpMain = null;
 
 	private String userAgent;
 	private String host;
-	// TODO - Figure out which of these are actually required.
 	private String connection;
 	private String contentType;
 	private String contentLength;
+
+	// TODO -- Check if more types are required.
 
 	public RequestParser(byte[] req) {
 		// Trim unnecessary variables as time goes on
@@ -40,10 +38,6 @@ public class RequestParser {
 
 		// Split on CRLF
 		requestLines = requestFull.split("[\\r\\n]+");
-
-		// TODO - Figure out if payload really starts there
-		// TODO - Figure out if this is actually needed for anything
-		payloadStartIndex = requestFull.indexOf("\r\n\r\n") + 4;
 
 		processData();
 
@@ -55,8 +49,8 @@ public class RequestParser {
 	}
 
 	// When you want to know how much data the client wants to PUT or POST.
-	public int getContentLength() {
-		return Integer.parseInt(contentLength);
+	public int getContentLength() throws NumberFormatException {
+		return Integer.parseInt(contentLength.trim());
 	}
 
 	// Get host that client wants to connect to
@@ -64,8 +58,13 @@ public class RequestParser {
 		return host;
 	}
 
+	// Returns keep alive state request.
 	public String getConnection() {
 		return connection;
+	}
+
+	public String getContentType() {
+		return contentType;
 	}
 
 	// Get requested method; GET, PUT, POST, etc.
