@@ -77,7 +77,7 @@ public class ClientThread implements Runnable{
             while (matcher.find()) {
                 if(first) {
                     headerEnd = matcher.start();
-                    payloadStart= matcher.start()+4;
+                    payloadStart= matcher.start();
                     payloadEnd = requestString.length();
                     first = false;
                 }
@@ -93,14 +93,15 @@ public class ClientThread implements Runnable{
             // GET REQUEST LINE
             Pattern patternRequestline = Pattern.compile( "^(GET|POST|HEAD|PUT)\\s+([\\/\\w?=%]*)\\s+(HTTP\\/.*)");
             Matcher matcher2 = patternRequestline.matcher(extractedHeader);
+            String[] firstLineParameters = {"","",""};
             while (matcher2.find()) {
                 System.err.println(String.format("\tMatch: %s at index [%d, %d]",
                         matcher2.group(), matcher2.start(), matcher2.end()));
                 System.out.printf("group count: %d %n", matcher2.groupCount());
                 if(matcher2.groupCount() == 3) {
-                    System.out.printf("group 1: {%s} %n", matcher2.group(1));
-                    System.out.printf("group 2: {%s} %n", matcher2.group(2));
-                    System.out.printf("group 3: {%s} %n", matcher2.group(3));
+                    firstLineParameters[0]=matcher2.group(1);
+                    firstLineParameters[1]=matcher2.group(2);
+                    firstLineParameters[2]=matcher2.group(3);
                 }
             }
 
@@ -118,13 +119,32 @@ public class ClientThread implements Runnable{
                 }
             }
             System.out.printf("\t contenttype: {%s} %n", requestContentType);
-//            String reqLine = matcherRequestline.group();
 
+            // GET CONTENT LENGTH
+            Pattern patternContentLength = Pattern.compile( "^(Content-Length):\\s*([\\w\\/-]+)", Pattern.MULTILINE | Pattern.CASE_INSENSITIVE);
+            Matcher matcher4 = patternContentLength.matcher(extractedHeader);
+            int requestContentLength = 0;
+            while (matcher4.find()) {
+//                System.err.println(String.format("\tCONTENT Match: %s at index [%d, %d]",
+//                        matcher3.group(), matcher3.start(), matcher3.end()));
+//                System.out.printf("group count: %d %n", matcher3.groupCount());
+                if(matcher4.groupCount() == 2) {
+                    try {
+                        requestContentLength = Integer.parseInt(matcher4.group(2));
+                    } catch (NumberFormatException e) {
+                        // TODO send 4XX client error
+                    }
+                    break;
+                }
+            }
+            System.out.printf("\t content-length: {%s} %n", requestContentLength);
+
+//            String reqLine = matcherRequestline.group();
 //            Arrays.stream(requestLines).forEach(line -> System.out.println("line:{"+line+"}"));
 
             // Request-Line   = Method SP Request-URI SP HTTP-Version CRLF
             // SOURCE: https://tools.ietf.org/html/rfc2616#page-35
-            String[] firstLineParameters = {"GET", "/testFolder", "HTTP/1.1"};//requestLines[0].split(" ");
+//            String[] firstLineParameters = {"GET", "/testFolder", "HTTP/1.1"};//requestLines[0].split(" ");
 
             if(firstLineParameters.length < 3){
                 // TODO send 400 Bad Request
@@ -135,6 +155,9 @@ public class ClientThread implements Runnable{
 
 //            Arrays.stream(firstLineParameters).forEach(line -> System.out.println("\tfirstLine:{"+line+"}"));
 
+            if(requestMethod.compareTo("POST") == 0) {
+
+            }
             if(requestMethod.compareTo("GET") == 0) {
                 File file = new File(servingDirectory, requestURI);
 
