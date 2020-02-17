@@ -159,6 +159,9 @@ public class ClientThread implements Runnable {
 			if (requestHeader.getMethod().equals("GET")) {
 				processGet(requestHeader, outputStream);
 			}
+			else if (requestHeader.getMethod().equals("PUT")) {
+				processPut(requestHeader, outputStream);
+			}
 			else if (requestHeader.getMethod().equals("POST")) {
 				// TODO: implement x-www-form-urlencoded, multi-part form, binary data.
 				// TODO: Detect content type that client is trying to send, this just shoves data into an image file.
@@ -199,10 +202,12 @@ public class ClientThread implements Runnable {
 	// TODO - Support if the content sent came in multiple chunks of TCP data, we do NOT have to support Transfer-Encoding: Chunked!! We can refuse this kind of request.
 	private byte[] getContent(InputStream in, int contentLength) throws IOException {
 		byte[] content = new byte[contentLength];
-		in.read(content, 0, contentLength);
+		int bytesRead = in.read(content, 0, contentLength);
+		// TODO -- Throw exception if bytes read was less than expected content length within a suitable timeout.
 		return content;
 	}
 
+	// Returns a request header
 	private byte[] getRequest(InputStream in) throws IOException {
 		ArrayList<Byte> bytes = new ArrayList<>();
 		byte read;
@@ -238,7 +243,7 @@ public class ClientThread implements Runnable {
 					first = true;
 				}
 			}
-			// If -1 is read
+			// If -1 is read, EOF has been reached which means the socket received a FIN/ACK
 			else {
 				throw new IOException("Host closed connection");
 			}
@@ -261,6 +266,7 @@ public class ClientThread implements Runnable {
 	private void processGet(RequestParser requestHeader, OutputStream output) throws IOException {
 		String requestedPath = servingDirectory.getAbsolutePath() + requestHeader.getPathRequest();
 		String finalPath = "";
+		boolean set404error = false;
 		StatusCode finalStatus = StatusCode.SUCCESS_200_OK;
 
 		// TODO - maybe rewrite this to avoid creating a file object, maybe a path object is enough?
@@ -282,15 +288,14 @@ public class ClientThread implements Runnable {
 		if (Files.isDirectory(Paths.get(requestedPath))) {
 			finalPath = requestedPath + INDEX_HTML;
 
-			// Check for index html and index htm.
+			// If index.html doesn't exist, try index.htm
 			if (!Files.isReadable(Paths.get(finalPath))) {
 				finalPath = requestedPath + INDEX_HTM;
 
+				// If index html and index htm doesn't exist
 				if (!Files.isReadable(Paths.get(finalPath))) {
-					// If index html and index htm doesn't exist
 					System.err.println("Resource not found");
-					finalStatus = StatusCode.CLIENT_ERROR_404_NOT_FOUND;
-					finalPath = error404HtmlPath;
+					set404error = true;
 				}
 			}
 		}
@@ -301,20 +306,34 @@ public class ClientThread implements Runnable {
 		// If file or folder does not exist.
 		else {
 			System.err.println("Resource not found");
+			set404error = true;
+		}
+
+		// If previous if-block indicates that resource does not exist, set response to path 404.html and 404 header.
+		if (set404error) {
 			finalStatus = StatusCode.CLIENT_ERROR_404_NOT_FOUND;
 			finalPath = error404HtmlPath;
 		}
+		generateAndSendOutput(finalPath, finalStatus, output);
+	}
 
-		/*
-		If you debug and look at the requested paths, you will see that the path mixes (/) and (\), this still works fine with java.io.File.
-		Even with a double // or double \\, it filters out and still works.
-		 */
+	// TODO -- Make a put implementation here!
+	private void processPut(RequestParser requestHeader, OutputStream output) {
+
+	}
+
+	/*
+	If you debug and look at the requested paths, you will see that the finalPath variable mixes (/) and (\), this still works fine with java.io.File.
+	Even with a double // or double \\, it io.File filter this out and still works.
+    */
+	private void generateAndSendOutput(String finalPath, StatusCode finalStatus, OutputStream output) throws IOException {
 		File f = new File(finalPath);
 		System.out.println("Outputting to stream: " + f.getAbsolutePath());
 		byte[] headerBytes = (ResponseBuilder.generateHeader(URLConnection.guessContentTypeFromName(f.getName()), finalStatus, f.length())).getBytes();
 		if (f.canRead()) {
 			output.write(headerBytes);
 			output.write(Files.readAllBytes(Paths.get(f.getAbsolutePath())));
+			// flush() tells stream to send bytes
 			output.flush();
 		}
 	}

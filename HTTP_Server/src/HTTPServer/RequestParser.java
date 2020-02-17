@@ -31,6 +31,8 @@ public class RequestParser {
 
 	// TODO -- Check if more types are required.
 
+	// TODO -- Throw IllegalArgument if a poorly formatted request is received, ex - if you wrote some garbage into telnet.
+
 	public RequestParser(byte[] req) {
 		// Trim unnecessary variables as time goes on
 		requestBytes = req;

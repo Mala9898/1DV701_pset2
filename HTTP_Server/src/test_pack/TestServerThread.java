@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
+import java.net.URLConnection;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -149,7 +150,7 @@ public class TestServerThread implements Runnable {
 		File f = new File(finalPath);
 
 		System.out.println(f.getAbsolutePath());
-		byte[] aLottaBytes = (ResponseBuilder.generateHeader("html", StatusCode.SUCCESS_200_OK, (int) f.length())).getBytes();
+		byte[] aLottaBytes = (ResponseBuilder.generateHeader(URLConnection.guessContentTypeFromName(f.getName()), StatusCode.SUCCESS_200_OK, f.length())).getBytes();
 		output.write(aLottaBytes);
 		if (f.canRead()) {
 			output.write(Files.readAllBytes(Paths.get(f.getAbsolutePath())));
