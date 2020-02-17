@@ -97,19 +97,19 @@ public class RequestParser {
 			else {
 				// User agent is split in a more sophisticated way, fix!
 				if (processing[0].equalsIgnoreCase("User-Agent")) {
-					userAgent = processing[1];
+					userAgent = processing[1].trim();
 				}
 				else if (processing[0].equalsIgnoreCase("Host")) {
-					host = processing[1];
+					host = processing[1].trim();
 				}
 				else if (processing[0].equalsIgnoreCase("Connection")) {
-					connection = processing[1];
+					connection = processing[1].trim();
 				}
 				else if (processing[0].equalsIgnoreCase("Content-Type")) {
-					contentType = processing[1];
+					contentType = processing[1].trim();
 				}
 				else if (processing[0].equalsIgnoreCase("Content-Length")) {
-					contentLength = processing[1];
+					contentLength = processing[1].trim();
 				}
 				else {
 					System.out.println("Not supported: " + processing[0]);
