@@ -14,16 +14,16 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.lang.ref.ReferenceQueue;
 import java.net.Socket;
+import java.net.URLConnection;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 
 public class TestServerThread implements Runnable {
 	private Socket socket;
-	private final String INDEX_HTML = "/index.html";
-	private final String INDEX_HTM = "/index.htm";
+	private static final String INDEX_HTML = "/index.html";
+	private static final String INDEX_HTM = "/index.htm";
 	private File rootDirectory;
 	ArrayList<String[]> fullRequest = new ArrayList<>();
 
@@ -56,34 +56,8 @@ public class TestServerThread implements Runnable {
 		}
 
 		if (requestParser.getMethod().equals("GET")) {
-			String requestedPath = rootDirectory.getAbsolutePath() + requestParser.getPathRequest();
-			String finalPath = "";
-
-			if (Files.isDirectory(Paths.get(requestedPath))) {
-				finalPath = requestedPath + INDEX_HTML;
-				if (!Files.isReadable(Paths.get(finalPath))) {
-					finalPath = requestedPath + INDEX_HTM;
-					if (!Files.isReadable(Paths.get(finalPath))) {
-						System.err.println("ERR 404 TEMP");
-					}
-				}
-			}
-			else if (Files.isReadable(Paths.get(requestedPath))) {
-				finalPath = requestedPath;
-			}
-			else {
-				// 404 not found
-				System.err.println("Resource not found");
-			}
-			File f = new File(finalPath);
-
-			System.out.println(f.getAbsolutePath());
 			try {
-				byte[] aLottaBytes = (ResponseBuilder.generateHeader("html", StatusCode.SUCCESS_200_OK, (int) f.length())).getBytes();
-				output.write(aLottaBytes);
-				if (f.canRead()) {
-					output.write(Files.readAllBytes(Paths.get(f.getAbsolutePath())));
-				}
+				processGet(requestParser, output);
 			}
 			catch (IOException e) {
 				e.printStackTrace();
@@ -109,6 +83,7 @@ public class TestServerThread implements Runnable {
 		byte read;
 		boolean first = true;
 		boolean duo = false;
+
 		while (true) {
 			if ((read = (byte) in.read()) != -1) {
 				System.out.print((char) read);
@@ -117,10 +92,10 @@ public class TestServerThread implements Runnable {
 					if (first) {
 						first = false;
 					}
+					else if (duo) {
+						break;
+					}
 					else {
-						if (duo) {
-							break;
-						}
 						duo = true;
 						first = true;
 					}
@@ -134,13 +109,51 @@ public class TestServerThread implements Runnable {
 				throw new IOException("Host closed connection");
 			}
 		}
+		return byteConversion(bytes);
+	}
+
+	private byte[] byteConversion(ArrayList<Byte> bytesIn) {
 		// Why 0? Compiler wants it that way, doesn't actually try to stuff everything into an empty array.
-		Byte[] objectBytes = bytes.toArray(new Byte[0]);
-		byte[] bytesToReturn = new byte[objectBytes.length];
+		Byte[] objectBytes = bytesIn.toArray(new Byte[0]);
+		byte[] primitiveReturnBytes = new byte[objectBytes.length];
 		int i = 0;
 		for (Byte b : objectBytes) {
-			bytesToReturn[i++] = b;
+			primitiveReturnBytes[i++] = b;
 		}
-		return bytesToReturn;
+		return primitiveReturnBytes;
+	}
+
+	private void processGet(RequestParser requestParser, OutputStream output) throws IOException {
+		String requestedPath = rootDirectory.getAbsolutePath() + requestParser.getPathRequest();
+		String finalPath = "";
+
+		if (Files.isDirectory(Paths.get(requestedPath))) {
+			finalPath = requestedPath + INDEX_HTML;
+
+			// Check for index html and index htm.
+			if (!Files.isReadable(Paths.get(finalPath))) {
+				finalPath = requestedPath + INDEX_HTM;
+
+				if (!Files.isReadable(Paths.get(finalPath))) {
+					// If index html and index htm doesn't exist
+					System.err.println("ERR 404 TEMP");
+				}
+			}
+		}
+		else if (Files.isReadable(Paths.get(requestedPath))) {
+			finalPath = requestedPath;
+		}
+		else {
+			// 404 not found
+			System.err.println("Resource not found");
+		}
+		File f = new File(finalPath);
+
+		System.out.println(f.getAbsolutePath());
+		byte[] aLottaBytes = (ResponseBuilder.generateHeader(URLConnection.guessContentTypeFromName(f.getName()), StatusCode.SUCCESS_200_OK, f.length())).getBytes();
+		output.write(aLottaBytes);
+		if (f.canRead()) {
+			output.write(Files.readAllBytes(Paths.get(f.getAbsolutePath())));
+		}
 	}
 }

@@ -3,18 +3,10 @@ package HTTPServer;
 import java.io.*;
 import java.net.Socket;
 import java.net.URLConnection;
-import java.nio.ByteBuffer;
-import java.nio.CharBuffer;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.regex.MatchResult;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.ArrayList;
 
 /**
  * @author: Stanislaw J. Malec  (sm223ak@student.lnu.se)
@@ -24,29 +16,33 @@ import java.util.regex.Pattern;
 
 // TODO: implement static serving
 
-public class ClientThread implements Runnable{
+public class ClientThread implements Runnable {
 
-    private Socket clientSocket;
-    private File servingDirectory;
-//    private final int REQUEST_BUFFER_LEN = 4096;
-    private final int REQUEST_BUFFER_LEN = 90000;
+	private static final String INDEX_HTML = "/index.html";
+	private static final String INDEX_HTM = "/index.htm";
+	private String error404HtmlPath;
+	private Socket clientSocket;
+	private File servingDirectory;
+	//    private final int REQUEST_BUFFER_LEN = 4096;
+	private final int REQUEST_BUFFER_LEN = 90000;
 
-    public ClientThread(Socket clientSocket, File directory) {
-        this.clientSocket = clientSocket;
-        this.servingDirectory = directory;
-    }
+	public ClientThread(Socket clientSocket, File directory) {
+		this.clientSocket = clientSocket;
+		this.servingDirectory = directory;
+		error404HtmlPath = servingDirectory.getAbsolutePath() + "/404.html";
+	}
 
-    @Override
-    public void run() {
-        try {
-            // create two output streams, one "raw" for sending binary data, and a Writer for sending ASCII (header) text
-            OutputStream rawOutputStream = new BufferedOutputStream(clientSocket.getOutputStream());
-            Writer outputStream = new OutputStreamWriter(rawOutputStream);
+	@Override
+	public void run() {
+		try {
+			// create two output streams, one "raw" for sending binary data, and a Writer for sending ASCII (header) text
+			OutputStream outputStream = new BufferedOutputStream(clientSocket.getOutputStream());
+			InputStream inputStream = clientSocket.getInputStream();
 
-//            Reader inputStream = new InputStreamReader(clientSocket.getInputStream(), "UTF-8");
-//            Reader inputStream = new InputStreamReader(clientSocket.getInputStream(), "US-ASCII");
+			System.out.println("Using directory: " + servingDirectory.getAbsolutePath());
+/*
 
-            InputStream inputStream = clientSocket.getInputStream();
+        // TODO -- Shove all this into RequestParser
 
             byte[] requestBuffer = new byte[REQUEST_BUFFER_LEN];
             int totalBytesRead = inputStream.read(requestBuffer, 0, REQUEST_BUFFER_LEN);
@@ -150,83 +146,195 @@ public class ClientThread implements Runnable{
             String requestURI = firstLineParameters[1];
 
 //            Arrays.stream(firstLineParameters).forEach(line -> System.out.println("\tfirstLine:{"+line+"}"));
+*/
 
-            if(requestMethod.compareTo("POST") == 0) {
-                // TODO: implement x-www-form-urlencoded, multi-part form, binary data.
-                // TODO: need to implement the RequestParser to get Content-Length etc...
-                System.out.println("client sent a POST");
-                System.out.println("GOT POST REQUEST!");
-                byte[] payloadSubarray = Arrays.copyOfRange(requestBuffer, payloadStart+2, payloadEnd+1);
-                Path writeDestination = Paths.get(servingDirectory+"/FINALE.png");
+			RequestParser requestHeader = null;
+			try {
+				requestHeader = new RequestParser(getRequest(inputStream));
+			}
+			catch (IOException e) {
+				e.printStackTrace();
+				System.exit(1);
+			}
+			if (requestHeader.getMethod().equals("GET")) {
+				processGet(requestHeader, outputStream);
+			}
+			else if (requestHeader.getMethod().equals("PUT")) {
+				processPut(requestHeader, outputStream);
+			}
+			else if (requestHeader.getMethod().equals("POST")) {
+				// TODO: implement x-www-form-urlencoded, multi-part form, binary data.
+				// TODO: Detect content type that client is trying to send, this just shoves data into an image file.
 
-                try {
-                    // todo close this stream once done
-                    OutputStream outputStream1 = new FileOutputStream(servingDirectory.getAbsolutePath()+"/FINALE.png");
-                    OutputStream outputStreamWriter = new FileOutputStream(servingDirectory.getAbsolutePath()+"/FINALE.png");//FileOutputStream(outputStream1, "UTF-8");
-                    outputStream1.write(payloadSubarray);
-                } catch (Exception eee) {
-                    System.out.println("Something went wrong: "+eee.getMessage());
-                    eee.printStackTrace();
-                }
+				System.out.println("GOT POST REQUEST!");
+				byte[] payloadData = getContent(inputStream, requestHeader.getContentLength());
+				Path writeDestination = Paths.get(servingDirectory + "/FINALE.png");
 
-            }
-            if(requestMethod.compareTo("GET") == 0) {
-                File file = new File(servingDirectory, requestURI);
+				// Try with resources is automatically closing.
+				try (OutputStream out = new FileOutputStream(servingDirectory.getAbsolutePath() + "/FINALE.png")) {
+					out.write(payloadData);
+				}
+				catch (Exception e) {
+					System.out.println("Something went wrong: " + e.getMessage());
+					e.printStackTrace();
+				}
 
-                // prevent "../../" hacks
-                // https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/io/File.html#getCanonicalPath()
-                //  "removes redundant names such as "." and ".." from the pathname,
-                //   resolving symbolic links (on UNIX platforms), and converting drive letters to a standard case (on Microsoft Windows platforms)."
-                if(!file.getCanonicalPath().startsWith(servingDirectory.getPath())){
-                    // todo send 400 bad request
-                }
+			}
 
-                if(Files.isDirectory(Paths.get(servingDirectory+requestURI))) {
-                    if(Files.isReadable(Paths.get(servingDirectory+requestURI + "/index.html"))){
-//                    System.out.println("found index.html");
-                        file = new File(Paths.get(servingDirectory+requestURI+"/index.html").toString());
-                    }
-                    else if(Files.isReadable(Paths.get(servingDirectory+requestURI + "/index.htm"))){
-//                    System.out.println("found index.htm");
-                        file = new File(Paths.get(servingDirectory+requestURI+"/index.htm").toString());
-                    } else {
-                        System.out.println("FOUND NOTHING! index.html");
-                        // todo: send "404 not found".... neither index.html nor index.htm was found. simply an empty directory.
-                    }
-                }
-                System.out.println("final file:" +file.toPath());
+			else {
+				// TODO - Send 400 Bad Request
+				System.out.println("Not supported");
+			}
 
-//                ResponseBuilder responseBuilder = new ResponseBuilder();
+		}
+		catch (IOException e) {
+			e.printStackTrace();
+		}
+		try {
+			clientSocket.close();
+		}
+		catch (IOException e) {
+			e.printStackTrace();
+		}
+		System.out.println("Thread terminating");
+	}
 
-                if(file.canRead()) {
-                    System.out.println("can read file");
-                    byte[] contentBytes = Files.readAllBytes(Paths.get(file.getPath()));
+	// TODO - Support if the content sent came in multiple chunks of TCP data, we do NOT have to support Transfer-Encoding: Chunked!! We can refuse this kind of request.
+	private byte[] getContent(InputStream in, int contentLength) throws IOException {
+		byte[] content = new byte[contentLength];
+		int bytesRead = in.read(content, 0, contentLength);
+		// TODO -- Throw exception if bytes read was less than expected content length within a suitable timeout.
+		return content;
+	}
 
-                    // get MIME type
-                    // https://stackoverflow.com/questions/51438/getting-a-files-mime-type-in-java
-                    String contentType = URLConnection.guessContentTypeFromName(file.getName());
-                    System.out.println("MIME: "+contentType);
+	// Returns a request header
+	private byte[] getRequest(InputStream in) throws IOException {
+		ArrayList<Byte> bytes = new ArrayList<>();
+		byte read;
+		boolean first = true;
+		boolean duo = false;
 
-                    String header = ResponseBuilder.generateHeader(contentType,StatusCode.SUCCESS_200_OK ,contentBytes.length);
-                    System.out.println("\n\nheader: \n"+header);
+		while (true) {
+			// Read bytes, valid header is ALWAYS in ASCII.
+			if ((read = (byte) in.read()) != -1) {
+				System.out.print((char) read);
+				// Add byte to list.
+				bytes.add(read);
+				// On CR or LF
+				if (read == '\r' || read == '\n') {
+					if (first) {
+						// On CR
+						first = false;
+					}
+					// SonarLint is wrong, duo does turn true on CRLFx2!!
+					// On CRLFx2
+					else if (duo) {
+						break;
+					}
+					else {
+						// On LF
+						duo = true;
+						first = true;
+					}
+				}
+				// On any character other than CR or LF
+				else {
+					duo = false;
+					first = true;
+				}
+			}
+			// If -1 is read, EOF has been reached which means the socket received a FIN/ACK
+			else {
+				throw new IOException("Host closed connection");
+			}
+		}
+		return byteConversion(bytes);
+	}
 
-                    outputStream.write(header);
-                    outputStream.flush();
+	// Takes a Byte list and returns a primitive byte[] array with elements unpacked.
+	private byte[] byteConversion(ArrayList<Byte> bytesIn) {
+		// Why 0? Compiler wants it that way, doesn't actually try to stuff everything into an empty array.
+		Byte[] objectBytes = bytesIn.toArray(new Byte[0]);
+		byte[] primitiveReturnBytes = new byte[objectBytes.length];
+		int i = 0;
+		for (Byte b : objectBytes) {
+			primitiveReturnBytes[i++] = b;
+		}
+		return primitiveReturnBytes;
+	}
 
-                    rawOutputStream.write(contentBytes);
-                    outputStream.flush();
+	private void processGet(RequestParser requestHeader, OutputStream output) throws IOException {
+		String requestedPath = servingDirectory.getAbsolutePath() + requestHeader.getPathRequest();
+		String finalPath = "";
+		boolean set404error = false;
+		StatusCode finalStatus = StatusCode.SUCCESS_200_OK;
 
-                } else {
-                    System.err.println("CANNOT READ FILE");
-                }
-                inputStream.close();
-                outputStream.close();
-                rawOutputStream.close();
-            }
+		// TODO - maybe rewrite this to avoid creating a file object, maybe a path object is enough?
+		File requestedFile = new File(servingDirectory, requestHeader.getPathRequest());
 
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
+		// prevent "../../" hacks
+		// https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/io/File.html#getCanonicalPath()
+		//  "removes redundant names such as "." and ".." from the pathname,
+		//   resolving symbolic links (on UNIX platforms), and converting drive letters to a standard case (on Microsoft Windows platforms)."
 
+		// TODO - Check if this actually still works, changed servingDirectory.getPath() to servingDirectory.getCanonicalPath().
+		if (!requestedFile.getCanonicalPath().startsWith(servingDirectory.getCanonicalPath())) {
+			// TODO - Send 403 Forbidden!
+			System.err.println("400 bad request, terminating");
+			System.exit(1);
+		}
+
+		// If file is readable and is a directory, start looking for HTML or HTM in that folder.
+		if (Files.isDirectory(Paths.get(requestedPath))) {
+			finalPath = requestedPath + INDEX_HTML;
+
+			// If index.html doesn't exist, try index.htm
+			if (!Files.isReadable(Paths.get(finalPath))) {
+				finalPath = requestedPath + INDEX_HTM;
+
+				// If index html and index htm doesn't exist
+				if (!Files.isReadable(Paths.get(finalPath))) {
+					System.err.println("Resource not found");
+					set404error = true;
+				}
+			}
+		}
+		// If requested file is a single file and not directory, and is also readable.
+		else if (Files.isReadable(Paths.get(requestedPath))) {
+			finalPath = requestedPath;
+		}
+		// If file or folder does not exist.
+		else {
+			System.err.println("Resource not found");
+			set404error = true;
+		}
+
+		// If previous if-block indicates that resource does not exist, set response to path 404.html and 404 header.
+		if (set404error) {
+			finalStatus = StatusCode.CLIENT_ERROR_404_NOT_FOUND;
+			finalPath = error404HtmlPath;
+		}
+		generateAndSendOutput(finalPath, finalStatus, output);
+	}
+
+	// TODO -- Make a put implementation here!
+	private void processPut(RequestParser requestHeader, OutputStream output) {
+
+	}
+
+	/*
+	If you debug and look at the requested paths, you will see that the finalPath variable mixes (/) and (\), this still works fine with java.io.File.
+	Even with a double // or double \\, it io.File filter this out and still works.
+    */
+	private void generateAndSendOutput(String finalPath, StatusCode finalStatus, OutputStream output) throws IOException {
+		File f = new File(finalPath);
+		System.out.println("Outputting to stream: " + f.getAbsolutePath());
+		byte[] headerBytes = (ResponseBuilder.generateHeader(URLConnection.guessContentTypeFromName(f.getName()), finalStatus, f.length())).getBytes();
+		if (f.canRead()) {
+			output.write(headerBytes);
+			output.write(Files.readAllBytes(Paths.get(f.getAbsolutePath())));
+			// flush() tells stream to send bytes
+			output.flush();
+		}
+	}
 }
