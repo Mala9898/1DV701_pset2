@@ -165,7 +165,7 @@ public class ClientThread implements Runnable {
 			else if (requestHeader.getMethod().equals("POST")) {
 				// TODO: implement x-www-form-urlencoded, multi-part form, binary data.
 				// TODO: Detect content type that client is trying to send, this just shoves data into an image file.
-
+				// TODO limit this buffer
 				System.out.println("GOT POST REQUEST!");
 				byte[] payloadData = getContent(inputStream, requestHeader.getContentLength());
 				Path writeDestination = Paths.get(servingDirectory + "/FINALE.png");
@@ -202,9 +202,23 @@ public class ClientThread implements Runnable {
 	// TODO - Support if the content sent came in multiple chunks of TCP data, we do NOT have to support Transfer-Encoding: Chunked!! We can refuse this kind of request.
 	private byte[] getContent(InputStream in, int contentLength) throws IOException {
 		byte[] content = new byte[contentLength];
-		int bytesRead = in.read(content, 0, contentLength);
+
+		// credit: the use of ByteArrayOutputStream: https://www.baeldung.com/convert-input-stream-to-array-of-bytes
+		ByteArrayOutputStream contentBuffer = new ByteArrayOutputStream();
+
+		int totalRead = 0;
+		int bytesRead = 0;
+		while ((bytesRead = in.read(content, 0, contentLength)) != -1) {
+			contentBuffer.write(content, 0 , bytesRead);
+			totalRead += bytesRead;
+			System.out.printf("read  %10d/%d %n", totalRead, contentLength);
+			if(totalRead >= contentLength){
+				System.out.println("got all the data");
+				break;
+			}
+		}
 		// TODO -- Throw exception if bytes read was less than expected content length within a suitable timeout.
-		return content;
+		return contentBuffer.toByteArray();
 	}
 
 	// Returns a request header
@@ -244,8 +258,11 @@ public class ClientThread implements Runnable {
 				}
 			}
 			// If -1 is read, EOF has been reached which means the socket received a FIN/ACK
+			// ---> NOT REALLY TRUE: -1 can be received when sender closes their TCP output (tcp is bidirectional). They can still listen on their input and the socket is alive.
+			// ---> server closed the connection prematurely when I tried a GET /index.html with Postman (Insomnia alternative)
 			else {
-				throw new IOException("Host closed connection");
+//				throw new IOException("Host closed connection");
+				break;
 			}
 		}
 		return byteConversion(bytes);

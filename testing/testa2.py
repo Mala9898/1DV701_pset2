@@ -10,7 +10,7 @@ server = '127.0.0.1'
 port = 4950
 
 # Points to copies of the files, not served by the web server
-dirbase = Path('/Users/mogge/web')
+dirbase = Path('/Users/stan/Downloads/morgan/web')
 
 # Allow for .htm solutions
 fe = '.html'
