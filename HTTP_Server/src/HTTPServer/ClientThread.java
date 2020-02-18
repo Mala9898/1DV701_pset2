@@ -333,7 +333,7 @@ public class ClientThread implements Runnable {
 		if (f.canRead()) {
 			output.write(headerBytes);
 			output.write(Files.readAllBytes(Paths.get(f.getAbsolutePath())));
-			// flush() tells stream to send bytes
+			// flush() tells stream to send bytes immediately
 			output.flush();
 		}
 	}
