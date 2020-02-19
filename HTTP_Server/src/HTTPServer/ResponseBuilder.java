@@ -11,6 +11,17 @@ import java.util.Date;
 
 public class ResponseBuilder {
 
+    public static final String PAGE_404 = "<!DOCTYPE html>\n" +
+            "<html lang=\"en\">\n" +
+            "<head>\n" +
+            "    <title>404 not found</title>\n" +
+            "</head>\n" +
+            "<body>\n" +
+            "<p>This page was not found</p>\n" +
+            "<a href=\"index.html\">Back to homepage</a>\n" +
+            "</body>\n" +
+            "</html>";
+
     private ResponseBuilder() {
         // Private constructor to hide the implicit public constructor
     }

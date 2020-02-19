@@ -217,6 +217,7 @@ public class ClientThread implements Runnable {
 				break;
 			}
 		}
+		contentBuffer.close();
 		// TODO -- Throw exception if bytes read was less than expected content length within a suitable timeout.
 		return contentBuffer.toByteArray();
 	}
@@ -329,9 +330,10 @@ public class ClientThread implements Runnable {
 		// If previous if-block indicates that resource does not exist, set response to path 404.html and 404 header.
 		if (set404error) {
 			finalStatus = StatusCode.CLIENT_ERROR_404_NOT_FOUND;
-			finalPath = error404HtmlPath;
-		}
-		generateAndSendOutput(finalPath, finalStatus, output);
+//			finalPath = error404HtmlPath;
+			sendError(StatusCode.CLIENT_ERROR_404_NOT_FOUND, output);
+		} else
+			generateAndSendOutput(finalPath, finalStatus, output);
 	}
 
 	// TODO -- Make a put implementation here!
@@ -353,5 +355,13 @@ public class ClientThread implements Runnable {
 			// flush() tells stream to send bytes immediately
 			output.flush();
 		}
+	}
+	private void sendError(StatusCode finalStatus, OutputStream output) throws IOException {
+		byte[] headerBytes = (ResponseBuilder.generateHeader("text/html", finalStatus, ResponseBuilder.PAGE_404.length())).getBytes();
+
+		output.write(headerBytes);
+		output.write(ResponseBuilder.PAGE_404.getBytes());
+		output.flush(); // flush() tells stream to send bytes immediately
+
 	}
 }
