@@ -167,6 +167,8 @@ public class ClientThread implements Runnable {
 				// TODO: Detect content type that client is trying to send, this just shoves data into an image file.
 				// TODO limit this buffer
 				System.out.println("GOT POST REQUEST!");
+				System.out.printf("content-type={%s} boundary={%s} %n", requestHeader.getContentType(), requestHeader.getBoundary());
+
 				byte[] payloadData = getContent(inputStream, requestHeader.getContentLength());
 				Path writeDestination = Paths.get(servingDirectory + "/FINALE.png");
 
