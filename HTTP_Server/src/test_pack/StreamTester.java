@@ -31,7 +31,7 @@ public class StreamTester {
         String boundaryEND = "--XYZ--";
         String payloadStart = "\r\n\r\n";
         String boundaryAnotherPart = "\r\n";
-        String boundaryEndPart = "--\r\n";
+        String boundaryEndPart = "--";
         int contentBufferLength = boundary.length()+4;
 
         ArrayList<byte[]> toReturn = new ArrayList<byte[]>();
@@ -45,6 +45,7 @@ public class StreamTester {
         boolean isPart = false;
         boolean isPartPayload = false;
         boolean boundaryCheckingMode = false;
+        boolean canOnlyBeEnd = false;
         int matchCounter = 0;
         int partPayloadStartMatchCounter = 0;
         int partPayloadEndMatchCounter = 0;
@@ -112,23 +113,8 @@ public class StreamTester {
                         // 2. --XYZ-- (end of multipart/form-data)
                         // 3. --XYZ{anything} false alarm
                         if(boundaryCheckingMode) {
-                            if(readByte == (int)boundaryAnotherPart.charAt(boundaryAnotherPartCounter)) {
-                                boundaryAnotherPartCounter += 1;
-                                if(boundaryAnotherPartCounter == boundaryAnotherPart.length()){
-                                    System.out.println("another multipart section found");
-                                    boundaryCheckingMode = false;
-                                    tempBuffer = ByteBuffer.allocate(contentBufferLength);
-                                    partPayloadEndMatchCounter = 0;
-                                    boundaryAnotherPartCounter = 0;
-                                    partPayloadStartMatchCounter = 0;
-
-                                    isPartPayload = false;
-                                    matchCounter = 0;
-                                    continue;
-                                }
-                                continue;
-                            }
-                            else if(readByte == (int)boundaryEndPart.charAt(boundaryEndPartCounter)) {
+                            if(readByte == (int)boundaryEndPart.charAt(boundaryEndPartCounter)) {
+                                canOnlyBeEnd = true;
                                 boundaryEndPartCounter += 1;
                                 if(boundaryEndPartCounter == boundaryEndPart.length()){
                                     System.out.println("END of multipart found");
@@ -138,12 +124,35 @@ public class StreamTester {
                                     boundaryEndPartCounter = 0;
                                     partPayloadStartMatchCounter = 0;
 
+                                    toReturn.add(contentBuffer.toByteArray());
                                     isPartPayload = false;
                                     matchCounter = 0;
                                     continue;
                                 }
                                 continue;
                             }
+                            else if(!canOnlyBeEnd) {
+                                if(readByte == (int)boundaryAnotherPart.charAt(boundaryAnotherPartCounter)) {
+                                    boundaryAnotherPartCounter += 1;
+                                    if(boundaryAnotherPartCounter == boundaryAnotherPart.length()){
+                                        System.out.println("another multipart section found");
+                                        boundaryCheckingMode = false;
+                                        tempBuffer = ByteBuffer.allocate(contentBufferLength);
+                                        partPayloadEndMatchCounter = 0;
+                                        boundaryAnotherPartCounter = 0;
+                                        partPayloadStartMatchCounter = 0;
+
+                                        isPartPayload = false;
+                                        matchCounter = 0;
+
+                                        toReturn.add(contentBuffer.toByteArray());
+                                        contentBuffer.reset();
+                                        continue;
+                                    }
+                                    continue;
+                                }
+                            }
+
                         }
                     }
 
@@ -223,18 +232,23 @@ public class StreamTester {
                 }
             }
         }
-        StringBuilder stringPayload = new StringBuilder();
-        byte[] first = contentBuffer.toByteArray();
-        for(byte b : first) {
-            switch (Character.getType((char)b)) {
-                case Character.CONTROL:
-                    stringPayload.append(Integer.toString((char)b));
-                    break;
-                default:
-                    stringPayload.append(Character.toString((char)b));
+        int i = 0;
+        System.out.println("\tparts found: "+toReturn.size());
+        for(byte[] bytes : toReturn) {
+            StringBuilder stringPayload = new StringBuilder();
+            for(byte b : bytes) {
+                switch (Character.getType((char)b)) {
+                    case Character.CONTROL:
+                        stringPayload.append(Integer.toString((char)b));
+                        break;
+                    default:
+                        stringPayload.append(Character.toString((char)b));
+                }
             }
+            System.out.printf("payload part #%d {%s} %n",i, stringPayload.toString());
+            i++;
         }
-        System.out.printf("payload part #1 {%s} %n", stringPayload.toString());
+
 
 //        final int BUF_LEN = 18;
 //        byte[] buffer = new byte[BUF_LEN];
