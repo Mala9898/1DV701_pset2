@@ -184,7 +184,14 @@ public class ClientThread implements Runnable {
 					// print the received filenames
 					if(payloadData.size() >= 1) {
 						for(MultipartObject multipartObject : payloadData) {
-							System.out.printf("filename: {%s}  %n", multipartObject.getDispositionFilename());
+							System.out.printf("saving {%s} %n", multipartObject.getDispositionFilename());
+							try (OutputStream out = new FileOutputStream(servingDirectory.getAbsolutePath() + "/uploaded/"+multipartObject.getDispositionFilename())) {
+								out.write(multipartObject.getData());
+							}
+							catch (Exception e) {
+								System.out.println("Something went wrong: " + e.getMessage());
+								e.printStackTrace();
+							}
 						}
 					} else {
 						System.err.println("\tNO MULTIPART DATA FOUND");
