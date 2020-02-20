@@ -1,0 +1,16 @@
+<!-- credit: the HTML upload forms https://www.taniarascia.com/how-to-upload-files-to-a-server-with-plain-javascript-and-php/ -->
+
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>File upload</title>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    </head>
+    <body>
+        <form method="post" enctype="multipart/form-data">
+            <input type="file" name="files[]" multiple />
+            <input type="submit" value="Upload File" name="submit" />
+        </form>
+    </body>
+</html>

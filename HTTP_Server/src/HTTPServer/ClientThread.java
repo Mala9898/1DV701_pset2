@@ -7,6 +7,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Random;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * @author: Stanislaw J. Malec  (sm223ak@student.lnu.se)
@@ -165,18 +168,40 @@ public class ClientThread implements Runnable {
 			else if (requestHeader.getMethod().equals("POST")) {
 				// TODO: implement x-www-form-urlencoded, multi-part form, binary data.
 				// TODO: Detect content type that client is trying to send, this just shoves data into an image file.
-
+				// TODO limit this buffer
 				System.out.println("GOT POST REQUEST!");
-				byte[] payloadData = getContent(inputStream, requestHeader.getContentLength());
-				Path writeDestination = Paths.get(servingDirectory + "/FINALE.png");
+				System.out.printf("content-type={%s} boundary={%s} %n", requestHeader.getContentType(), requestHeader.getBoundary());
 
-				// Try with resources is automatically closing.
-				try (OutputStream out = new FileOutputStream(servingDirectory.getAbsolutePath() + "/FINALE.png")) {
-					out.write(payloadData);
+				if(requestHeader.getContentType().equals("multipart/form-data")) {
+					ArrayList<byte[]> payloadData = getMultipartContent(inputStream, requestHeader.getContentLength(),requestHeader.getBoundary());
+
+					Path writeDestination = Paths.get(servingDirectory + "/FINALE.png");
+
+					for(byte[] toWrite : payloadData) {
+						System.out.println("writing a file...");
+						Random random = new Random();
+						try (OutputStream out = new FileOutputStream(servingDirectory.getAbsolutePath() + "/uploaded/FINALE"+ random.nextInt() +".png")) {
+							out.write(toWrite);
+						}
+						catch (Exception e) {
+							System.out.println("Something went wrong: " + e.getMessage());
+							e.printStackTrace();
+						}
+					}
+
 				}
-				catch (Exception e) {
-					System.out.println("Something went wrong: " + e.getMessage());
-					e.printStackTrace();
+				else if(requestHeader.getContentType().equals("image/png")) {
+					byte[] payloadData = getBinaryContent(inputStream, requestHeader.getContentLength());
+					Path writeDestination = Paths.get(servingDirectory + "/uploaded/FINALE.png");
+
+					System.out.println("writing a file...");
+					try (OutputStream out = new FileOutputStream(servingDirectory.getAbsolutePath() + "/uploaded//FINALE.png")) {
+						out.write(payloadData);
+					}
+					catch (Exception e) {
+						System.out.println("Something went wrong: " + e.getMessage());
+						e.printStackTrace();
+					}
 				}
 
 			}
@@ -200,11 +225,116 @@ public class ClientThread implements Runnable {
 	}
 
 	// TODO - Support if the content sent came in multiple chunks of TCP data, we do NOT have to support Transfer-Encoding: Chunked!! We can refuse this kind of request.
-	private byte[] getContent(InputStream in, int contentLength) throws IOException {
+	private ArrayList<byte[]> getMultipartContent(InputStream in, int contentLength, String boundary) throws IOException {
+
+		ArrayList<byte[]> toReturn = new ArrayList<byte[]>();
+		// credit: the use of ByteArrayOutputStream: https://www.baeldung.com/convert-input-stream-to-array-of-bytes
+		ByteArrayOutputStream contentBuffer = new ByteArrayOutputStream();
+
+		BufferedReader reader = new BufferedReader(new InputStreamReader(in, "US-ASCII"));
+		String boundaryEND = boundary +"--";
+		String line;
+
+		String dispositionType = "";
+		String dispositionName = "";
+		String dispositionFilename = "";
+		String dispositionContentType = "";
+
+		boolean isPart = false;
+		boolean isPartPayload = false;
+		boolean hasDisposition = false;
+		boolean hasContentType = false;
+//		StringBuilder part = new StringBuilder();
+		while ((line = reader.readLine()) != null) {
+//			System.out.printf("line: {%s} %n", line);
+			if(line.compareTo(boundary) == 0) {
+				if(!isPart) {
+					// first part we enconter
+					isPart = true;
+					continue;
+				} else {
+					// we're done with the previous part. start a new one
+					toReturn.add(contentBuffer.toByteArray());
+					contentBuffer.reset();
+					System.out.printf("\t added one part! %n");
+					continue;
+				}
+			}
+
+			// if end of entire multipart/form-data
+			if(line.compareTo(boundaryEND) == 0) {
+				// TODO finish up
+				toReturn.add(contentBuffer.toByteArray());
+				System.out.printf("\t added FINAL part! %n");
+				return toReturn;
+			}
+
+			// we have to read some headers before the part payload
+			if(!isPartPayload) {
+				if(!hasDisposition) {
+					Pattern pattern = Pattern.compile( "^Content-Disposition:[\\s]{0,1}(?<disposition>[\\w\\/-]+)(?:;\\s{0,1}name=\"(?<name>[\\w-]+)\")(?:;\\s{0,1}filename=\"(?<filename>[\\w._-]+)\")?", Pattern.MULTILINE | Pattern.CASE_INSENSITIVE);
+					Matcher matcher = pattern.matcher(line);
+
+					while (matcher.find()) {
+						System.out.printf("group count: %d %n", matcher.groupCount());
+						if(matcher.groupCount() >= 2) {
+							dispositionType = matcher.group("disposition");
+							dispositionName = matcher.group("name");
+							hasDisposition = true;
+						}
+						if(matcher.groupCount()==3) {
+							dispositionFilename = matcher.group("filename");
+							hasDisposition = true;
+						}
+						continue;
+					}
+				}
+				if(hasDisposition && !isPartPayload) {
+					if(line.equals("")) {
+						isPartPayload = true;
+						continue;
+					}
+					Pattern pattern = Pattern.compile( "^Content-Type:\\s{0,1}(?<contentType>[\\w\\/]+)", Pattern.MULTILINE | Pattern.CASE_INSENSITIVE);
+					Matcher matcher = pattern.matcher(line);
+
+					while (matcher.find()) {
+						System.out.printf("group count: %d %n", matcher.groupCount());
+						if(matcher.groupCount() == 1) {
+							dispositionContentType = matcher.group("contentType");
+							hasContentType = true;
+							continue;
+						}
+					}
+				}
+			} else {
+				contentBuffer.write(line.getBytes("US-ASCII"));
+			}
+
+		}
+		return toReturn;
+
+	}
+
+	private byte[] getBinaryContent(InputStream in, int contentLength) throws IOException {
 		byte[] content = new byte[contentLength];
-		int bytesRead = in.read(content, 0, contentLength);
+
+		// credit: the use of ByteArrayOutputStream: https://www.baeldung.com/convert-input-stream-to-array-of-bytes
+		ByteArrayOutputStream contentBuffer = new ByteArrayOutputStream();
+
+		int totalRead = 0;
+		int bytesRead = 0;
+		while ((bytesRead = in.read(content, 0, contentLength)) != -1) {
+			contentBuffer.write(content, 0 , bytesRead);
+			totalRead += bytesRead;
+			System.out.printf("read  %10d/%d %n", totalRead, contentLength);
+			if(totalRead >= contentLength){
+				System.out.println("got all the data");
+				break;
+			}
+		}
+		contentBuffer.close();
 		// TODO -- Throw exception if bytes read was less than expected content length within a suitable timeout.
-		return content;
+		return contentBuffer.toByteArray();
 	}
 
 	// Returns a request header
@@ -244,8 +374,11 @@ public class ClientThread implements Runnable {
 				}
 			}
 			// If -1 is read, EOF has been reached which means the socket received a FIN/ACK
+			// ---> NOT REALLY TRUE: -1 can be received when sender closes their TCP output (tcp is bidirectional). They can still listen on their input and the socket is alive.
+			// ---> server closed the connection prematurely when I tried a GET /index.html with Postman (Insomnia alternative)
 			else {
-				throw new IOException("Host closed connection");
+//				throw new IOException("Host closed connection");
+				break;
 			}
 		}
 		return byteConversion(bytes);
@@ -312,9 +445,10 @@ public class ClientThread implements Runnable {
 		// If previous if-block indicates that resource does not exist, set response to path 404.html and 404 header.
 		if (set404error) {
 			finalStatus = StatusCode.CLIENT_ERROR_404_NOT_FOUND;
-			finalPath = error404HtmlPath;
-		}
-		generateAndSendOutput(finalPath, finalStatus, output);
+//			finalPath = error404HtmlPath;
+			sendError(StatusCode.CLIENT_ERROR_404_NOT_FOUND, output);
+		} else
+			generateAndSendOutput(finalPath, finalStatus, output);
 	}
 
 	// TODO -- Make a put implementation here!
@@ -333,8 +467,16 @@ public class ClientThread implements Runnable {
 		if (f.canRead()) {
 			output.write(headerBytes);
 			output.write(Files.readAllBytes(Paths.get(f.getAbsolutePath())));
-			// flush() tells stream to send bytes
+			// flush() tells stream to send bytes immediately
 			output.flush();
 		}
+	}
+	private void sendError(StatusCode finalStatus, OutputStream output) throws IOException {
+		byte[] headerBytes = (ResponseBuilder.generateHeader("text/html", finalStatus, ResponseBuilder.PAGE_404.length())).getBytes();
+
+		output.write(headerBytes);
+		output.write(ResponseBuilder.PAGE_404.getBytes());
+		output.flush(); // flush() tells stream to send bytes immediately
+
 	}
 }
