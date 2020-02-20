@@ -1,7 +1,11 @@
 package test_pack;
 
+import HTTPServer.Multipart.MultipartObject;
+
 import java.io.*;
+import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
 
 /**
  * @author: Stanislaw J. Malec  (sm223ak@student.lnu.se)
@@ -10,36 +14,214 @@ import java.nio.charset.Charset;
  */
 public class StreamTester {
     public static void main(String[] args) throws IOException {
-        InputStream inputStream = new ByteArrayInputStream("--BOUNDARY\r\nline2\r\nlinethree\r\nline_four\r\n--BOUNDARY\r\nline_five\r\n--BOUNDARY--".getBytes());
+        String testData1 = "--XYZ\r\n" +
+                "Content-Disposition: form-data; name=\"fieldName\"; filename=\"filename.jpg\"" +
+                "\r\n\r\n" +
+                "payload#1\r\n" +
+                "--XYZ\r\n" +
+                "someheader#2\r\n" +
+                "\r\n" +
+                "payload#2" +
+                "--XYZ--";
+        String testData2 = "--XYZ\r\nsomeheader\r\n\r\npayload content\r\nline_four\r\n--XYZ\r\nline_five\r\n--XYZ--";
 
-        BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, "US-ASCII"));
-        String boundary = "--BOUNDARY";
-        String boundaryEND = "--BOUNDARY--";
-        String line;
+        InputStream inputStream = new ByteArrayInputStream(testData1.getBytes("US-ASCII"));
+        BufferedInputStream reader = new BufferedInputStream(inputStream);
+
+        String boundarySTART = "--XYZ";
+        String boundary = "--XYZ\r\n";
+        String boundaryEND = "--XYZ--";
+        String payloadStart = "\r\n\r\n";
+        String boundaryAnotherPart = "\r\n";
+        String boundaryEndPart = "--";
+        int contentBufferLength = boundary.length()+4;
+
+        ArrayList<MultipartObject> toReturn = new ArrayList<MultipartObject>();
+        ByteArrayOutputStream contentBuffer = new ByteArrayOutputStream();
+        ByteArrayOutputStream headerBuffer = new ByteArrayOutputStream();
+        ByteBuffer tempHeaderBuffer = ByteBuffer.allocate(1024);
+        ByteBuffer tempBuffer = ByteBuffer.allocate(contentBufferLength);
+
+        int readByte = 0;
 
         boolean isPart = false;
-        StringBuilder part = new StringBuilder();
-        while ((line = reader.readLine()) != null) {
-            if(line.compareTo(boundary) == 0) {
-                if(!isPart) {
-                    // first part we enconter
-                    isPart = true;
-                    continue;
+        boolean isPartPayload = false;
+        boolean boundaryCheckingMode = false;
+        boolean canOnlyBeEnd = false;
+        int matchCounter = 0;
+        int partPayloadStartMatchCounter = 0;
+        int partPayloadEndMatchCounter = 0;
+
+        int boundaryAnotherPartCounter = 0;
+        int boundaryEndPartCounter = 0;
+        while ((readByte = reader.read()) != -1) {
+            // detect start boundary
+            if(!isPart) {
+                if(readByte == (int)boundary.charAt(matchCounter)) {
+                    matchCounter+= 1;
+                    if(matchCounter == boundary.length()){
+                        isPart = true;
+                        System.out.println("Starting boundary detected!");
+                        continue;
+                    }
                 } else {
-                    // we're done with the previous part. start a new one
-                    System.out.printf("final part {%s} %n", part.toString());
-                    part.setLength(0);
+                    matchCounter = 0;
                     continue;
                 }
             }
-            if(line.compareTo(boundaryEND) == 0) {
-                // TODO finish up
-                System.out.printf("final part {%s} %n", part.toString());
-                break;
-            }
 
-            part.append(line);
+            // we're at least past the header start boundary
+            if(isPart) {
+                if(!isPartPayload) {
+                    tempHeaderBuffer.put((byte)readByte);
+
+                    // check if we're at start of payload "\r\n\r\n"
+                    if(readByte == (int)payloadStart.charAt(partPayloadStartMatchCounter)) {
+                        partPayloadStartMatchCounter += 1;
+                        if(partPayloadStartMatchCounter == payloadStart.length()){
+                            isPartPayload = true;
+                            System.out.println("Start of part payload detected!");
+
+                            int endCondition = tempHeaderBuffer.position() - 4;
+                            tempHeaderBuffer.flip();
+                            for(int i = 0; i < endCondition; i++) {
+                                byte toCopy = tempHeaderBuffer.get();
+                                headerBuffer.write(toCopy);
+                            }
+
+                            byte[] headerBytes = headerBuffer.toByteArray();
+                            System.out.printf("header: {%s} %n", new String(headerBytes, 0, headerBytes.length));
+
+                            continue;
+                        } else {
+                            continue;
+                        }
+                    } else {
+                        partPayloadStartMatchCounter = 0;
+                        continue;
+                    }
+                }
+
+                if(isPartPayload) {
+
+                    // here -> --XYZ|
+                    if(partPayloadEndMatchCounter < boundarySTART.length()) {
+                        if(readByte == (int)boundarySTART.charAt(partPayloadEndMatchCounter)) {
+//                        boundaryCheckingMode = true;
+                            partPayloadEndMatchCounter += 1;
+
+                            // --XYZ detected: enter boundary mode
+                            if(partPayloadEndMatchCounter == boundarySTART.length()){
+                                boundaryCheckingMode = true;
+
+                                System.out.println("--XYZ detected ... entering boundary checking mode");
+                                continue;
+                            } else {
+                                // save byte to a temporary buffer in case it turns out to be a false alarm
+                                tempBuffer.put((byte)readByte);
+                                continue;
+                            }
+                        }
+                    }
+                    // --XYZ| <-- here
+                    else {
+                        // three options
+                        // 1. --XYZ (another part)
+                        // 2. --XYZ-- (end of multipart/form-data)
+                        // 3. --XYZ{anything} false alarm
+                        if(boundaryCheckingMode) {
+                            if(readByte == (int)boundaryEndPart.charAt(boundaryEndPartCounter)) {
+                                canOnlyBeEnd = true;
+                                boundaryEndPartCounter += 1;
+                                if(boundaryEndPartCounter == boundaryEndPart.length()){
+                                    System.out.println("END of multipart found");
+                                    boundaryCheckingMode = false;
+                                    tempBuffer = ByteBuffer.allocate(contentBufferLength);
+                                    partPayloadEndMatchCounter = 0;
+                                    boundaryEndPartCounter = 0;
+                                    partPayloadStartMatchCounter = 0;
+
+                                    MultipartObject multipartObject = new MultipartObject(headerBuffer.toByteArray(), contentBuffer.toByteArray());
+                                    toReturn.add(multipartObject);
+
+                                    headerBuffer.reset();
+                                    tempHeaderBuffer = ByteBuffer.allocate(1024);
+
+                                    isPartPayload = false;
+                                    matchCounter = 0;
+                                    continue;
+                                }
+                                continue;
+                            }
+                            else if(!canOnlyBeEnd) {
+                                if(readByte == (int)boundaryAnotherPart.charAt(boundaryAnotherPartCounter)) {
+                                    boundaryAnotherPartCounter += 1;
+                                    if(boundaryAnotherPartCounter == boundaryAnotherPart.length()){
+                                        System.out.println("another multipart section found");
+                                        boundaryCheckingMode = false;
+                                        tempBuffer = ByteBuffer.allocate(contentBufferLength);
+                                        partPayloadEndMatchCounter = 0;
+                                        boundaryAnotherPartCounter = 0;
+                                        partPayloadStartMatchCounter = 0;
+
+                                        isPartPayload = false;
+                                        matchCounter = 0;
+
+                                        MultipartObject multipartObject = new MultipartObject(headerBuffer.toByteArray(), contentBuffer.toByteArray());
+                                        toReturn.add(multipartObject);
+
+                                        headerBuffer.reset();
+                                        tempHeaderBuffer = ByteBuffer.allocate(1024);
+
+                                        contentBuffer.reset();
+                                        continue;
+                                    }
+                                    continue;
+                                }
+                            }
+
+                        }
+                    }
+
+                    if(partPayloadEndMatchCounter > 0){
+                        // check if we have to write what a false alarm when detecting the end
+                        tempBuffer.flip(); // make the end of buffer the position of the last element
+                        while (tempBuffer.hasRemaining()) {
+                            contentBuffer.write(tempBuffer.get());
+                        }
+                        tempBuffer = ByteBuffer.allocate(contentBufferLength);
+                        partPayloadEndMatchCounter = 0;
+                    }
+
+                    // current byte is part of a payload
+                    contentBuffer.write((byte) readByte);
+
+                }
+            }
         }
+
+        int i = 0;
+        System.out.println("\tparts found: "+toReturn.size());
+        for(MultipartObject multipartObject : toReturn) {
+            System.out.printf("filename: {%s}  %n", multipartObject.getDispositionFilename());
+            if(multipartObject.getDispositionContentType().equals("image/png")) {
+                System.out.println("HAS PNG!");
+            }
+            StringBuilder stringPayload = new StringBuilder();
+            for(byte b : multipartObject.getData()) {
+                switch (Character.getType((char)b)) {
+                    case Character.CONTROL:
+                        stringPayload.append(Integer.toString((char)b));
+                        break;
+                    default:
+                        stringPayload.append(Character.toString((char)b));
+                }
+            }
+            System.out.printf("payload part #%d {%s} %n",i, stringPayload.toString());
+            i++;
+        }
+
+
 //        final int BUF_LEN = 18;
 //        byte[] buffer = new byte[BUF_LEN];
 //        int bytesRead = 0;
