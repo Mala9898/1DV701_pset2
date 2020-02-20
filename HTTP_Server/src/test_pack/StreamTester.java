@@ -1,5 +1,7 @@
 package test_pack;
 
+import HTTPServer.Multipart.MultipartObject;
+
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
@@ -13,7 +15,7 @@ import java.util.ArrayList;
 public class StreamTester {
     public static void main(String[] args) throws IOException {
         String testData1 = "--XYZ\r\n" +
-                "someheader#1_line1\r\nsomeheader#1_line2" +
+                "Content-Disposition: form-data; name=\"fieldName\"; filename=\"filename.jpg\"" +
                 "\r\n\r\n" +
                 "payload#1\r\n" +
                 "--XYZ\r\n" +
@@ -34,7 +36,7 @@ public class StreamTester {
         String boundaryEndPart = "--";
         int contentBufferLength = boundary.length()+4;
 
-        ArrayList<byte[]> toReturn = new ArrayList<byte[]>();
+        ArrayList<MultipartObject> toReturn = new ArrayList<MultipartObject>();
         ByteArrayOutputStream contentBuffer = new ByteArrayOutputStream();
         ByteArrayOutputStream headerBuffer = new ByteArrayOutputStream();
         ByteBuffer tempHeaderBuffer = ByteBuffer.allocate(1024);
@@ -96,8 +98,6 @@ public class StreamTester {
 
                             byte[] headerBytes = headerBuffer.toByteArray();
                             System.out.printf("header: {%s} %n", new String(headerBytes, 0, headerBytes.length));
-                            headerBuffer.reset();
-                            tempHeaderBuffer = ByteBuffer.allocate(1024);
 
                             continue;
                         } else {
@@ -159,7 +159,12 @@ public class StreamTester {
                                     boundaryEndPartCounter = 0;
                                     partPayloadStartMatchCounter = 0;
 
-                                    toReturn.add(contentBuffer.toByteArray());
+                                    MultipartObject multipartObject = new MultipartObject(headerBuffer.toByteArray(), contentBuffer.toByteArray());
+                                    toReturn.add(multipartObject);
+
+                                    headerBuffer.reset();
+                                    tempHeaderBuffer = ByteBuffer.allocate(1024);
+
                                     isPartPayload = false;
                                     matchCounter = 0;
                                     continue;
@@ -180,7 +185,12 @@ public class StreamTester {
                                         isPartPayload = false;
                                         matchCounter = 0;
 
-                                        toReturn.add(contentBuffer.toByteArray());
+                                        MultipartObject multipartObject = new MultipartObject(headerBuffer.toByteArray(), contentBuffer.toByteArray());
+                                        toReturn.add(multipartObject);
+
+                                        headerBuffer.reset();
+                                        tempHeaderBuffer = ByteBuffer.allocate(1024);
+
                                         contentBuffer.reset();
                                         continue;
                                     }
@@ -209,9 +219,13 @@ public class StreamTester {
         }
         int i = 0;
         System.out.println("\tparts found: "+toReturn.size());
-        for(byte[] bytes : toReturn) {
+        for(MultipartObject multipartObject : toReturn) {
+            System.out.printf("filename: {%s}  %n", multipartObject.getDispositionFilename());
+            if(multipartObject.getDispositionContentType().equals("image/png")) {
+                System.out.println("HAS PNG!");
+            }
             StringBuilder stringPayload = new StringBuilder();
-            for(byte b : bytes) {
+            for(byte b : multipartObject.getData()) {
                 switch (Character.getType((char)b)) {
                     case Character.CONTROL:
                         stringPayload.append(Integer.toString((char)b));
