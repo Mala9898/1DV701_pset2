@@ -33,7 +33,7 @@ public class MultipartObject {
         Matcher matcher = pattern.matcher(line);
 
         while (matcher.find()) {
-            System.out.printf("group count: %d %n", matcher.groupCount());
+//            System.out.printf("group count: %d %n", matcher.groupCount());
             if(matcher.groupCount() >= 2) {
                 dispositionType = matcher.group("disposition");
                 dispositionName = matcher.group("name");
@@ -50,7 +50,7 @@ public class MultipartObject {
         Matcher matcher2 = pattern2.matcher(line);
 
         while (matcher2.find()) {
-            System.out.printf("group count: %d %n", matcher2.groupCount());
+//            System.out.printf("group count: %d %n", matcher2.groupCount());
             if(matcher2.groupCount() == 1) {
                 dispositionContentType = matcher2.group("contentType");
                 hasContentType = true;

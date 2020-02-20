@@ -24,8 +24,8 @@ public class StreamTester {
                 "payload#2" +
                 "--XYZ--";
         String testData2 = "--XYZ\r\nsomeheader\r\n\r\npayload content\r\nline_four\r\n--XYZ\r\nline_five\r\n--XYZ--";
-        InputStream inputStream = new ByteArrayInputStream(testData1.getBytes("US-ASCII"));
 
+        InputStream inputStream = new ByteArrayInputStream(testData1.getBytes("US-ASCII"));
         BufferedInputStream reader = new BufferedInputStream(inputStream);
 
         String boundarySTART = "--XYZ";
@@ -40,10 +40,8 @@ public class StreamTester {
         ByteArrayOutputStream contentBuffer = new ByteArrayOutputStream();
         ByteArrayOutputStream headerBuffer = new ByteArrayOutputStream();
         ByteBuffer tempHeaderBuffer = ByteBuffer.allocate(1024);
-//        ByteBuffer contentBuffer = ByteBuffer.allocate(contentBufferLength);
         ByteBuffer tempBuffer = ByteBuffer.allocate(contentBufferLength);
 
-        StringBuilder part = new StringBuilder();
         int readByte = 0;
 
         boolean isPart = false;
@@ -84,11 +82,6 @@ public class StreamTester {
                             isPartPayload = true;
                             System.out.println("Start of part payload detected!");
 
-//                            // print part header(s)
-//                            tempHeaderBuffer.flip(); // make the end of buffer the position of the last element
-//                            while (tempHeaderBuffer.hasRemaining()) {
-//                                headerBuffer.write(tempBuffer.get());
-//                            }
                             int endCondition = tempHeaderBuffer.position() - 4;
                             tempHeaderBuffer.flip();
                             for(int i = 0; i < endCondition; i++) {
@@ -101,22 +94,11 @@ public class StreamTester {
 
                             continue;
                         } else {
-//                            tempHeaderBuffer.put((byte)readByte);
                             continue;
                         }
                     } else {
-//                        headerBuffer.write((byte)readByte);
                         partPayloadStartMatchCounter = 0;
                         continue;
-//                        if(partPayloadStartMatchCounter > 0) {
-//                            // check if we have to write what a false alarm when detecting the end
-//                            tempHeaderBuffer.flip(); // make the end of buffer the position of the last element
-//                            while (tempHeaderBuffer.hasRemaining()) {
-//                                headerBuffer.write(tempBuffer.get());
-//                            }
-//                            tempHeaderBuffer = ByteBuffer.allocate(1024);
-//                        }
-
                     }
                 }
 
@@ -217,6 +199,7 @@ public class StreamTester {
                 }
             }
         }
+
         int i = 0;
         System.out.println("\tparts found: "+toReturn.size());
         for(MultipartObject multipartObject : toReturn) {
