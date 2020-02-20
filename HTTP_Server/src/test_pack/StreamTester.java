@@ -120,6 +120,10 @@ public class StreamTester {
                                     tempBuffer = ByteBuffer.allocate(contentBufferLength);
                                     partPayloadEndMatchCounter = 0;
                                     boundaryAnotherPartCounter = 0;
+                                    partPayloadStartMatchCounter = 0;
+
+                                    isPartPayload = false;
+                                    matchCounter = 0;
                                     continue;
                                 }
                                 continue;
@@ -132,6 +136,10 @@ public class StreamTester {
                                     tempBuffer = ByteBuffer.allocate(contentBufferLength);
                                     partPayloadEndMatchCounter = 0;
                                     boundaryEndPartCounter = 0;
+                                    partPayloadStartMatchCounter = 0;
+
+                                    isPartPayload = false;
+                                    matchCounter = 0;
                                     continue;
                                 }
                                 continue;
