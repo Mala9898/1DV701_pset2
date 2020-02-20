@@ -13,8 +13,8 @@ import java.util.ArrayList;
 public class StreamTester {
     public static void main(String[] args) throws IOException {
         String testData1 = "--XYZ\r\n" +
-                "someheader#1\r\n" +
-                "\r\n" +
+                "someheader#1_line1\r\nsomeheader#1_line2" +
+                "\r\n\r\n" +
                 "payload#1\r\n" +
                 "--XYZ\r\n" +
                 "someheader#2\r\n" +
@@ -36,6 +36,8 @@ public class StreamTester {
 
         ArrayList<byte[]> toReturn = new ArrayList<byte[]>();
         ByteArrayOutputStream contentBuffer = new ByteArrayOutputStream();
+        ByteArrayOutputStream headerBuffer = new ByteArrayOutputStream();
+        ByteBuffer tempHeaderBuffer = ByteBuffer.allocate(1024);
 //        ByteBuffer contentBuffer = ByteBuffer.allocate(contentBufferLength);
         ByteBuffer tempBuffer = ByteBuffer.allocate(contentBufferLength);
 
@@ -71,17 +73,50 @@ public class StreamTester {
             // we're at least past the header start boundary
             if(isPart) {
                 if(!isPartPayload) {
+                    tempHeaderBuffer.put((byte)readByte);
+
                     // check if we're at start of payload "\r\n\r\n"
                     if(readByte == (int)payloadStart.charAt(partPayloadStartMatchCounter)) {
                         partPayloadStartMatchCounter += 1;
                         if(partPayloadStartMatchCounter == payloadStart.length()){
                             isPartPayload = true;
                             System.out.println("Start of part payload detected!");
+
+//                            // print part header(s)
+//                            tempHeaderBuffer.flip(); // make the end of buffer the position of the last element
+//                            while (tempHeaderBuffer.hasRemaining()) {
+//                                headerBuffer.write(tempBuffer.get());
+//                            }
+                            int endCondition = tempHeaderBuffer.position() - 4;
+                            tempHeaderBuffer.flip();
+                            for(int i = 0; i < endCondition; i++) {
+                                byte toCopy = tempHeaderBuffer.get();
+                                headerBuffer.write(toCopy);
+                            }
+
+                            byte[] headerBytes = headerBuffer.toByteArray();
+                            System.out.printf("header: {%s} %n", new String(headerBytes, 0, headerBytes.length));
+                            headerBuffer.reset();
+                            tempHeaderBuffer = ByteBuffer.allocate(1024);
+
+                            continue;
+                        } else {
+//                            tempHeaderBuffer.put((byte)readByte);
                             continue;
                         }
                     } else {
+//                        headerBuffer.write((byte)readByte);
                         partPayloadStartMatchCounter = 0;
                         continue;
+//                        if(partPayloadStartMatchCounter > 0) {
+//                            // check if we have to write what a false alarm when detecting the end
+//                            tempHeaderBuffer.flip(); // make the end of buffer the position of the last element
+//                            while (tempHeaderBuffer.hasRemaining()) {
+//                                headerBuffer.write(tempBuffer.get());
+//                            }
+//                            tempHeaderBuffer = ByteBuffer.allocate(1024);
+//                        }
+
                     }
                 }
 
