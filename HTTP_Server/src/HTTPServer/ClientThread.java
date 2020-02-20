@@ -178,8 +178,10 @@ public class ClientThread implements Runnable {
 				System.out.printf("content-type={%s} boundary={%s} %n", requestHeader.getContentType(), requestHeader.getBoundary());
 
 				if(requestHeader.getContentType().equals("multipart/form-data")) {
+					// HERE WE HAVE ACCESS TO ALL THE INDIVIDUAL MULTIPART OBJECTS! (including, name, filename, payload etc.)
 					ArrayList<MultipartObject> payloadData = getMultipartContent(inputStream, requestHeader.getContentLength(),requestHeader.getBoundary());
 
+					// print the received filenames
 					if(payloadData.size() >= 1) {
 						for(MultipartObject multipartObject : payloadData) {
 							System.out.printf("filename: {%s}  %n", multipartObject.getDispositionFilename());
