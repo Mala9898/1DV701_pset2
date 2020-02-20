@@ -19,7 +19,7 @@ public class StreamTester {
                 "--XYZ\r\n" +
                 "someheader#2\r\n" +
                 "\r\n" +
-                "payload#2\r\n" +
+                "payload#2" +
                 "--XYZ--";
         String testData2 = "--XYZ\r\nsomeheader\r\n\r\npayload content\r\nline_four\r\n--XYZ\r\nline_five\r\n--XYZ--";
         InputStream inputStream = new ByteArrayInputStream(testData1.getBytes("US-ASCII"));
@@ -168,66 +168,6 @@ public class StreamTester {
 
                     // current byte is part of a payload
                     contentBuffer.write((byte) readByte);
-
-//                    // we're at --XYZ| <---- at least here
-//                    if(boundaryCheckingMode) {
-//                        System.out.println("--XYZ| <---- at least here");
-//                        if(readByte == (int)boundaryAnotherPart.charAt(boundaryAnotherPartCounter)) {
-//                            boundaryAnotherPartCounter += 1;
-//                            if(boundaryAnotherPartCounter == boundaryAnotherPart.length()){
-//                                System.out.println("another multipart section found");
-//                                boundaryCheckingMode = false;
-//                                tempBuffer = ByteBuffer.allocate(contentBufferLength);
-//                                partPayloadEndMatchCounter = 0;
-//                                boundaryAnotherPartCounter = 0;
-//                                continue;
-//                            }
-//                        }
-//                        else if(readByte == (int)boundaryEndPart.charAt(boundaryEndPartCounter)) {
-//                            boundaryEndPartCounter += 1;
-//                            if(boundaryEndPartCounter == boundaryEndPart.length()){
-//                                System.out.println("END of multipart found");
-//                                boundaryCheckingMode = false;
-//                                tempBuffer = ByteBuffer.allocate(contentBufferLength);
-//                                partPayloadEndMatchCounter = 0;
-//                                boundaryEndPartCounter = 0;
-//                                continue;
-//                            }
-//                        }
-//                    }
-//
-//                    // check for end of multipart/form-data boundary
-//                    if(partPayloadEndMatchCounter < boundarySTART.length()) {
-//                        if(readByte == (int)boundarySTART.charAt(partPayloadEndMatchCounter)) {
-////                        boundaryCheckingMode = true;
-//                            partPayloadEndMatchCounter += 1;
-//
-//                            // --XYZ detected: enter boundary mode
-//                            if(partPayloadEndMatchCounter == boundarySTART.length()){
-//                                boundaryCheckingMode = true;
-//
-//                                System.out.println("--XYZ detected ... entering boundary checking mode");
-//                                continue;
-//                            } else {
-//                                // save byte to a temporary buffer in case it turns out to be a false alarm
-//                                tempBuffer.put((byte)readByte);
-//                                continue;
-//                            }
-//                        }
-//                    }
-//
-//                    if(partPayloadEndMatchCounter > 0){
-//                        // check if we have to write what a false alarm when detecting the end
-//                        tempBuffer.flip(); // make the end of buffer the position of the last element
-//                        while (tempBuffer.hasRemaining()) {
-//                            contentBuffer.write(tempBuffer.get());
-//                        }
-//                        tempBuffer = ByteBuffer.allocate(contentBufferLength);
-//                        partPayloadEndMatchCounter = 0;
-//                    }
-//
-//                    // current byte is part of a payload
-//                    contentBuffer.write((byte) readByte);
 
                 }
             }
