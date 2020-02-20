@@ -275,7 +275,7 @@ public class ClientThread implements Runnable {
 					matchCounter+= 1;
 					if(matchCounter == boundary.length()){
 						isPart = true;
-						System.out.println("Starting boundary detected!");
+//						System.out.println("Starting boundary detected!");
 						continue;
 					}
 				} else {
@@ -340,8 +340,8 @@ public class ClientThread implements Runnable {
 					// --XYZ| <-- here
 					else {
 						// three options
-						// 1. --XYZ (another part)
-						// 2. --XYZ-- (end of multipart/form-data)
+						// 1. --XYZ-- (end of multipart/form-data)
+						// 2. --XYZ (another part)
 						// 3. --XYZ{anything} false alarm
 						if(boundaryCheckingMode) {
 							if(readByte == (int)boundaryEndPart.charAt(boundaryEndPartCounter)) {
@@ -363,7 +363,7 @@ public class ClientThread implements Runnable {
 
 									isPartPayload = false;
 									matchCounter = 0;
-									continue;
+									break;
 								}
 								continue;
 							}
