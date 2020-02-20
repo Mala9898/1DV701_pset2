@@ -6,7 +6,9 @@ import java.net.URLConnection;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.sql.Array;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Random;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -175,19 +177,37 @@ public class ClientThread implements Runnable {
 				if(requestHeader.getContentType().equals("multipart/form-data")) {
 					ArrayList<byte[]> payloadData = getMultipartContent(inputStream, requestHeader.getContentLength(),requestHeader.getBoundary());
 
-					Path writeDestination = Paths.get(servingDirectory + "/FINALE.png");
-
-					for(byte[] toWrite : payloadData) {
-						System.out.println("writing a file...");
-						Random random = new Random();
-						try (OutputStream out = new FileOutputStream(servingDirectory.getAbsolutePath() + "/uploaded/FINALE"+ random.nextInt() +".png")) {
-							out.write(toWrite);
+					if(payloadData.size() >= 1) {
+						StringBuilder stringPayload = new StringBuilder();
+						byte[] first = payloadData.get(0);
+						for(byte b : first) {
+							switch (Character.getType((char)b)) {
+								case Character.CONTROL:
+									stringPayload.append(Integer.toString((char)b));
+									break;
+								default:
+									stringPayload.append(Character.toString((char)b));
+							}
 						}
-						catch (Exception e) {
-							System.out.println("Something went wrong: " + e.getMessage());
-							e.printStackTrace();
-						}
+						System.out.printf("payload part #1 {%s} %n", stringPayload.toString());
+					} else {
+						System.err.println("\tNO MULTIPART DATA FOUND");
 					}
+
+
+//					Path writeDestination = Paths.get(servingDirectory + "/FINALE.png");
+//
+//					for(byte[] toWrite : payloadData) {
+//						System.out.println("writing a file...");
+//						Random random = new Random();
+//						try (OutputStream out = new FileOutputStream(servingDirectory.getAbsolutePath() + "/uploaded/FINALE"+ random.nextInt() +".png")) {
+//							out.write(toWrite);
+//						}
+//						catch (Exception e) {
+//							System.out.println("Something went wrong: " + e.getMessage());
+//							e.printStackTrace();
+//						}
+//					}
 
 				}
 				else if(requestHeader.getContentType().equals("image/png")) {
