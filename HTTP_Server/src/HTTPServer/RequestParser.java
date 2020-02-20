@@ -131,7 +131,7 @@ public class RequestParser {
 						} else if(matcher.groupCount()==2) {
 
 							contentType = matcher.group("contentType");
-							boundary = matcher.group("boundary");
+							boundary = "--"+matcher.group("boundary"); // boundaries are always prefixed by additional double dashes
 						}
 					}
 

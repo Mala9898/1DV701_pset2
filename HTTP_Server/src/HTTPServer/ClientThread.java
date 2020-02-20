@@ -7,6 +7,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Random;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * @author: Stanislaw J. Malec  (sm223ak@student.lnu.se)
@@ -169,16 +172,36 @@ public class ClientThread implements Runnable {
 				System.out.println("GOT POST REQUEST!");
 				System.out.printf("content-type={%s} boundary={%s} %n", requestHeader.getContentType(), requestHeader.getBoundary());
 
-				byte[] payloadData = getContent(inputStream, requestHeader.getContentLength());
-				Path writeDestination = Paths.get(servingDirectory + "/FINALE.png");
+				if(requestHeader.getContentType().equals("multipart/form-data")) {
+					ArrayList<byte[]> payloadData = getMultipartContent(inputStream, requestHeader.getContentLength(),requestHeader.getBoundary());
 
-				// Try with resources is automatically closing.
-				try (OutputStream out = new FileOutputStream(servingDirectory.getAbsolutePath() + "/FINALE.png")) {
-					out.write(payloadData);
+					Path writeDestination = Paths.get(servingDirectory + "/FINALE.png");
+
+					for(byte[] toWrite : payloadData) {
+						System.out.println("writing a file...");
+						Random random = new Random();
+						try (OutputStream out = new FileOutputStream(servingDirectory.getAbsolutePath() + "/uploaded/FINALE"+ random.nextInt() +".png")) {
+							out.write(toWrite);
+						}
+						catch (Exception e) {
+							System.out.println("Something went wrong: " + e.getMessage());
+							e.printStackTrace();
+						}
+					}
+
 				}
-				catch (Exception e) {
-					System.out.println("Something went wrong: " + e.getMessage());
-					e.printStackTrace();
+				else if(requestHeader.getContentType().equals("image/png")) {
+					byte[] payloadData = getBinaryContent(inputStream, requestHeader.getContentLength());
+					Path writeDestination = Paths.get(servingDirectory + "/uploaded/FINALE.png");
+
+					System.out.println("writing a file...");
+					try (OutputStream out = new FileOutputStream(servingDirectory.getAbsolutePath() + "/uploaded//FINALE.png")) {
+						out.write(payloadData);
+					}
+					catch (Exception e) {
+						System.out.println("Something went wrong: " + e.getMessage());
+						e.printStackTrace();
+					}
 				}
 
 			}
@@ -202,7 +225,97 @@ public class ClientThread implements Runnable {
 	}
 
 	// TODO - Support if the content sent came in multiple chunks of TCP data, we do NOT have to support Transfer-Encoding: Chunked!! We can refuse this kind of request.
-	private byte[] getContent(InputStream in, int contentLength) throws IOException {
+	private ArrayList<byte[]> getMultipartContent(InputStream in, int contentLength, String boundary) throws IOException {
+
+		ArrayList<byte[]> toReturn = new ArrayList<byte[]>();
+		// credit: the use of ByteArrayOutputStream: https://www.baeldung.com/convert-input-stream-to-array-of-bytes
+		ByteArrayOutputStream contentBuffer = new ByteArrayOutputStream();
+
+		BufferedReader reader = new BufferedReader(new InputStreamReader(in, "US-ASCII"));
+		String boundaryEND = boundary +"--";
+		String line;
+
+		String dispositionType = "";
+		String dispositionName = "";
+		String dispositionFilename = "";
+		String dispositionContentType = "";
+
+		boolean isPart = false;
+		boolean isPartPayload = false;
+		boolean hasDisposition = false;
+		boolean hasContentType = false;
+//		StringBuilder part = new StringBuilder();
+		while ((line = reader.readLine()) != null) {
+//			System.out.printf("line: {%s} %n", line);
+			if(line.compareTo(boundary) == 0) {
+				if(!isPart) {
+					// first part we enconter
+					isPart = true;
+					continue;
+				} else {
+					// we're done with the previous part. start a new one
+					toReturn.add(contentBuffer.toByteArray());
+					contentBuffer.reset();
+					System.out.printf("\t added one part! %n");
+					continue;
+				}
+			}
+
+			// if end of entire multipart/form-data
+			if(line.compareTo(boundaryEND) == 0) {
+				// TODO finish up
+				toReturn.add(contentBuffer.toByteArray());
+				System.out.printf("\t added FINAL part! %n");
+				return toReturn;
+			}
+
+			// we have to read some headers before the part payload
+			if(!isPartPayload) {
+				if(!hasDisposition) {
+					Pattern pattern = Pattern.compile( "^Content-Disposition:[\\s]{0,1}(?<disposition>[\\w\\/-]+)(?:;\\s{0,1}name=\"(?<name>[\\w-]+)\")(?:;\\s{0,1}filename=\"(?<filename>[\\w._-]+)\")?", Pattern.MULTILINE | Pattern.CASE_INSENSITIVE);
+					Matcher matcher = pattern.matcher(line);
+
+					while (matcher.find()) {
+						System.out.printf("group count: %d %n", matcher.groupCount());
+						if(matcher.groupCount() >= 2) {
+							dispositionType = matcher.group("disposition");
+							dispositionName = matcher.group("name");
+							hasDisposition = true;
+						}
+						if(matcher.groupCount()==3) {
+							dispositionFilename = matcher.group("filename");
+							hasDisposition = true;
+						}
+						continue;
+					}
+				}
+				if(hasDisposition && !isPartPayload) {
+					if(line.equals("")) {
+						isPartPayload = true;
+						continue;
+					}
+					Pattern pattern = Pattern.compile( "^Content-Type:\\s{0,1}(?<contentType>[\\w\\/]+)", Pattern.MULTILINE | Pattern.CASE_INSENSITIVE);
+					Matcher matcher = pattern.matcher(line);
+
+					while (matcher.find()) {
+						System.out.printf("group count: %d %n", matcher.groupCount());
+						if(matcher.groupCount() == 1) {
+							dispositionContentType = matcher.group("contentType");
+							hasContentType = true;
+							continue;
+						}
+					}
+				}
+			} else {
+				contentBuffer.write(line.getBytes("US-ASCII"));
+			}
+
+		}
+		return toReturn;
+
+	}
+
+	private byte[] getBinaryContent(InputStream in, int contentLength) throws IOException {
 		byte[] content = new byte[contentLength];
 
 		// credit: the use of ByteArrayOutputStream: https://www.baeldung.com/convert-input-stream-to-array-of-bytes
