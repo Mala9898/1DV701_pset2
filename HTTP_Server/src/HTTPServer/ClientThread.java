@@ -9,12 +9,7 @@ import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.sql.Array;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Random;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * @author: Stanislaw J. Malec  (sm223ak@student.lnu.se)
@@ -28,7 +23,8 @@ public class ClientThread implements Runnable {
 
 	private static final String INDEX_HTML = "/index.html";
 	private static final String INDEX_HTM = "/index.htm";
-	private String error404HtmlPath;
+	private static final String ERR_404 = "/404.html";
+	private String error404Path;
 	private Socket clientSocket;
 	private File servingDirectory;
 	//    private final int REQUEST_BUFFER_LEN = 4096;
@@ -37,17 +33,25 @@ public class ClientThread implements Runnable {
 	public ClientThread(Socket clientSocket, File directory) {
 		this.clientSocket = clientSocket;
 		this.servingDirectory = directory;
-		error404HtmlPath = servingDirectory.getAbsolutePath() + "/404.html";
+		error404Path = servingDirectory.getAbsolutePath() + ERR_404;
 	}
 
 	@Override
 	public void run() {
+		// create two output streams, one "raw" for sending binary data, and a Writer for sending ASCII (header) text
+		OutputStream outputStream = null;
+		InputStream inputStream = null;
 		try {
-			// create two output streams, one "raw" for sending binary data, and a Writer for sending ASCII (header) text
-			OutputStream outputStream = new BufferedOutputStream(clientSocket.getOutputStream());
-			InputStream inputStream = clientSocket.getInputStream();
+			outputStream = new BufferedOutputStream(clientSocket.getOutputStream());
+			inputStream = clientSocket.getInputStream();
+		}
+		catch (IOException e) {
+			// TODO - Add better error handling
+			System.err.println("Error when creating input or output stream: " + e.getMessage());
+			System.exit(1);
+		}
 
-			System.out.println("Using directory: " + servingDirectory.getAbsolutePath());
+		System.out.println("Using directory: " + servingDirectory.getAbsolutePath());
 /*
 
         // TODO -- Shove all this into RequestParser
@@ -156,14 +160,15 @@ public class ClientThread implements Runnable {
 //            Arrays.stream(firstLineParameters).forEach(line -> System.out.println("\tfirstLine:{"+line+"}"));
 */
 
-			RequestParser requestHeader = null;
-			try {
-				requestHeader = new RequestParser(getRequest(inputStream));
-			}
-			catch (IOException e) {
-				e.printStackTrace();
-				System.exit(1);
-			}
+		RequestParser requestHeader = null;
+		try {
+			requestHeader = new RequestParser(getRequest(inputStream));
+		}
+		catch (IOException e) {
+			System.err.println("Request parse failed, bad request received: " + e.getMessage());
+			System.exit(1);
+		}
+		try {
 			if (requestHeader.getMethod().equals("GET")) {
 				processGet(requestHeader, outputStream);
 			}
@@ -171,78 +176,22 @@ public class ClientThread implements Runnable {
 				processPut(requestHeader, outputStream);
 			}
 			else if (requestHeader.getMethod().equals("POST")) {
-				// TODO: implement x-www-form-urlencoded, multi-part form, binary data.
-				// TODO: Detect content type that client is trying to send, this just shoves data into an image file.
-				// TODO limit this buffer
-				System.out.println("GOT POST REQUEST!");
-				System.out.printf("content-type={%s} boundary={%s} %n", requestHeader.getContentType(), requestHeader.getBoundary());
-
-				if(requestHeader.getContentType().equals("multipart/form-data")) {
-					// HERE WE HAVE ACCESS TO ALL THE INDIVIDUAL MULTIPART OBJECTS! (including, name, filename, payload etc.)
-					ArrayList<MultipartObject> payloadData = getMultipartContent(inputStream, requestHeader.getContentLength(),requestHeader.getBoundary());
-
-					// print the received filenames
-					if(payloadData.size() >= 1) {
-						for(MultipartObject multipartObject : payloadData) {
-							System.out.printf("saving {%s} %n", multipartObject.getDispositionFilename());
-							try (OutputStream out = new FileOutputStream(servingDirectory.getAbsolutePath() + "/uploaded/"+multipartObject.getDispositionFilename())) {
-								out.write(multipartObject.getData());
-							}
-							catch (Exception e) {
-								System.out.println("Something went wrong: " + e.getMessage());
-								e.printStackTrace();
-							}
-						}
-					} else {
-						System.err.println("\tNO MULTIPART DATA FOUND");
-					}
-
-
-//					Path writeDestination = Paths.get(servingDirectory + "/FINALE.png");
-//
-//					for(byte[] toWrite : payloadData) {
-//						System.out.println("writing a file...");
-//						Random random = new Random();
-//						try (OutputStream out = new FileOutputStream(servingDirectory.getAbsolutePath() + "/uploaded/FINALE"+ random.nextInt() +".png")) {
-//							out.write(toWrite);
-//						}
-//						catch (Exception e) {
-//							System.out.println("Something went wrong: " + e.getMessage());
-//							e.printStackTrace();
-//						}
-//					}
-
-				}
-				else if(requestHeader.getContentType().equals("image/png")) {
-					byte[] payloadData = getBinaryContent(inputStream, requestHeader.getContentLength());
-					Path writeDestination = Paths.get(servingDirectory + "/uploaded/FINALE.png");
-
-					System.out.println("writing a file...");
-					try (OutputStream out = new FileOutputStream(servingDirectory.getAbsolutePath() + "/uploaded//FINALE.png")) {
-						out.write(payloadData);
-					}
-					catch (Exception e) {
-						System.out.println("Something went wrong: " + e.getMessage());
-						e.printStackTrace();
-					}
-				}
-
+				processPost(requestHeader, outputStream, inputStream);
 			}
-
 			else {
 				// TODO - Send 400 Bad Request
 				System.out.println("Not supported");
 			}
-
 		}
 		catch (IOException e) {
+			System.err.println("Error when processing request: " + e.getMessage());
 			e.printStackTrace();
 		}
 		try {
 			clientSocket.close();
 		}
 		catch (IOException e) {
-			e.printStackTrace();
+			System.err.println("Closing socket failed: " + e.getMessage());
 		}
 		System.out.println("Thread terminating");
 	}
@@ -253,11 +202,11 @@ public class ClientThread implements Runnable {
 		BufferedInputStream reader = new BufferedInputStream(inputStream);
 
 		String boundarySTART = _boundary; // "--XYZ"
-		String boundary = _boundary+"\r\n";
+		String boundary = _boundary + "\r\n";
 		String payloadStart = "\r\n\r\n";
 		String boundaryAnotherPart = "\r\n";
 		String boundaryEndPart = "--";
-		int contentBufferLength = boundary.length()+4;
+		int contentBufferLength = boundary.length() + 4;
 
 		ArrayList<MultipartObject> toReturn = new ArrayList<MultipartObject>();
 		ByteArrayOutputStream contentBuffer = new ByteArrayOutputStream();
@@ -279,35 +228,36 @@ public class ClientThread implements Runnable {
 		int boundaryEndPartCounter = 0;
 		while ((readByte = reader.read()) != -1) {
 			// detect start boundary
-			if(!isPart) {
-				if(readByte == (int)boundary.charAt(matchCounter)) {
-					matchCounter+= 1;
-					if(matchCounter == boundary.length()){
+			if (!isPart) {
+				if (readByte == (int) boundary.charAt(matchCounter)) {
+					matchCounter += 1;
+					if (matchCounter == boundary.length()) {
 						isPart = true;
 //						System.out.println("Starting boundary detected!");
 						continue;
 					}
-				} else {
+				}
+				else {
 					matchCounter = 0;
 					continue;
 				}
 			}
 
 			// we're at least past the header start boundary
-			if(isPart) {
-				if(!isPartPayload) {
-					tempHeaderBuffer.put((byte)readByte);
+			if (isPart) {
+				if (!isPartPayload) {
+					tempHeaderBuffer.put((byte) readByte);
 
 					// check if we're at start of payload "\r\n\r\n"
-					if(readByte == (int)payloadStart.charAt(partPayloadStartMatchCounter)) {
+					if (readByte == (int) payloadStart.charAt(partPayloadStartMatchCounter)) {
 						partPayloadStartMatchCounter += 1;
-						if(partPayloadStartMatchCounter == payloadStart.length()){
+						if (partPayloadStartMatchCounter == payloadStart.length()) {
 							isPartPayload = true;
 //							System.out.println("Start of part payload detected!");
 
 							int endCondition = tempHeaderBuffer.position() - 4;
 							tempHeaderBuffer.flip();
-							for(int i = 0; i < endCondition; i++) {
+							for (int i = 0; i < endCondition; i++) {
 								byte toCopy = tempHeaderBuffer.get();
 								headerBuffer.write(toCopy);
 							}
@@ -316,32 +266,35 @@ public class ClientThread implements Runnable {
 //							System.out.printf("header: {%s} %n", new String(headerBytes, 0, headerBytes.length));
 
 							continue;
-						} else {
+						}
+						else {
 							continue;
 						}
-					} else {
+					}
+					else {
 						partPayloadStartMatchCounter = 0;
 						continue;
 					}
 				}
 
-				if(isPartPayload) {
+				if (isPartPayload) {
 
 					// here -> --XYZ|
-					if(partPayloadEndMatchCounter < boundarySTART.length()) {
-						if(readByte == (int)boundarySTART.charAt(partPayloadEndMatchCounter)) {
+					if (partPayloadEndMatchCounter < boundarySTART.length()) {
+						if (readByte == (int) boundarySTART.charAt(partPayloadEndMatchCounter)) {
 //                        boundaryCheckingMode = true;
 							partPayloadEndMatchCounter += 1;
 
 							// --XYZ detected: enter boundary mode
-							if(partPayloadEndMatchCounter == boundarySTART.length()){
+							if (partPayloadEndMatchCounter == boundarySTART.length()) {
 								boundaryCheckingMode = true;
 
 //								System.out.println("--XYZ detected ... entering boundary checking mode");
 								continue;
-							} else {
+							}
+							else {
 								// save byte to a temporary buffer in case it turns out to be a false alarm
-								tempBuffer.put((byte)readByte);
+								tempBuffer.put((byte) readByte);
 								continue;
 							}
 						}
@@ -352,11 +305,11 @@ public class ClientThread implements Runnable {
 						// 1. --XYZ-- (end of multipart/form-data)
 						// 2. --XYZ (another part)
 						// 3. --XYZ{anything} false alarm
-						if(boundaryCheckingMode) {
-							if(readByte == (int)boundaryEndPart.charAt(boundaryEndPartCounter)) {
+						if (boundaryCheckingMode) {
+							if (readByte == (int) boundaryEndPart.charAt(boundaryEndPartCounter)) {
 								canOnlyBeEnd = true;
 								boundaryEndPartCounter += 1;
-								if(boundaryEndPartCounter == boundaryEndPart.length()){
+								if (boundaryEndPartCounter == boundaryEndPart.length()) {
 //									System.out.println("END of multipart found");
 									boundaryCheckingMode = false;
 									tempBuffer = ByteBuffer.allocate(contentBufferLength);
@@ -376,10 +329,10 @@ public class ClientThread implements Runnable {
 								}
 								continue;
 							}
-							else if(!canOnlyBeEnd) {
-								if(readByte == (int)boundaryAnotherPart.charAt(boundaryAnotherPartCounter)) {
+							else if (!canOnlyBeEnd) {
+								if (readByte == (int) boundaryAnotherPart.charAt(boundaryAnotherPartCounter)) {
 									boundaryAnotherPartCounter += 1;
-									if(boundaryAnotherPartCounter == boundaryAnotherPart.length()){
+									if (boundaryAnotherPartCounter == boundaryAnotherPart.length()) {
 //										System.out.println("another multipart section found");
 										boundaryCheckingMode = false;
 										tempBuffer = ByteBuffer.allocate(contentBufferLength);
@@ -406,7 +359,7 @@ public class ClientThread implements Runnable {
 						}
 					}
 
-					if(partPayloadEndMatchCounter > 0){
+					if (partPayloadEndMatchCounter > 0) {
 						// check if we have to write what a false alarm when detecting the end
 						tempBuffer.flip(); // make the end of buffer the position of the last element
 						while (tempBuffer.hasRemaining()) {
@@ -436,10 +389,10 @@ public class ClientThread implements Runnable {
 		int totalRead = 0;
 		int bytesRead = 0;
 		while ((bytesRead = in.read(content, 0, contentLength)) != -1) {
-			contentBuffer.write(content, 0 , bytesRead);
+			contentBuffer.write(content, 0, bytesRead);
 			totalRead += bytesRead;
 			System.out.printf("read  %10d/%d %n", totalRead, contentLength);
-			if(totalRead >= contentLength){
+			if (totalRead >= contentLength) {
 				System.out.println("got all the data");
 				break;
 			}
@@ -559,12 +512,70 @@ public class ClientThread implements Runnable {
 			finalStatus = StatusCode.CLIENT_ERROR_404_NOT_FOUND;
 //			finalPath = error404HtmlPath;
 			sendError(StatusCode.CLIENT_ERROR_404_NOT_FOUND, output);
-		} else
+		}
+		else {
 			generateAndSendOutput(finalPath, finalStatus, output);
+		}
+	}
+
+	private void processPost(RequestParser requestHeader, OutputStream output, InputStream input) throws IOException {
+		// TODO: implement x-www-form-urlencoded, multi-part form, binary data.
+		// TODO: Detect content type that client is trying to send, this just shoves data into an image file.
+		// TODO limit this buffer
+		System.out.println("GOT POST REQUEST!");
+		System.out.printf("content-type={%s} boundary={%s} %n", requestHeader.getContentType(), requestHeader.getBoundary());
+
+		if (requestHeader.getContentType().equals("multipart/form-data")) {
+			// HERE WE HAVE ACCESS TO ALL THE INDIVIDUAL MULTIPART OBJECTS! (including, name, filename, payload etc.)
+			ArrayList<MultipartObject> payloadData = getMultipartContent(input, requestHeader.getContentLength(), requestHeader.getBoundary());
+
+			// print the received filenames
+			if (payloadData.size() >= 1) {
+				for (MultipartObject multipartObject : payloadData) {
+					System.out.printf("saving {%s} %n", multipartObject.getDispositionFilename());
+					try (OutputStream out = new FileOutputStream(servingDirectory.getAbsolutePath() + "/uploaded/" + multipartObject.getDispositionFilename())) {
+						out.write(multipartObject.getData());
+					}
+					catch (Exception e) {
+						System.out.println("Something went wrong: " + e.getMessage());
+						e.printStackTrace();
+					}
+				}
+			}
+			else {
+				System.err.println("\tNO MULTIPART DATA FOUND");
+			}
+//					Path writeDestination = Paths.get(servingDirectory + "/FINALE.png");
+//
+//					for(byte[] toWrite : payloadData) {
+//						System.out.println("writing a file...");
+//						Random random = new Random();
+//						try (OutputStream out = new FileOutputStream(servingDirectory.getAbsolutePath() + "/uploaded/FINALE"+ random.nextInt() +".png")) {
+//							out.write(toWrite);
+//						}
+//						catch (Exception e) {
+//							System.out.println("Something went wrong: " + e.getMessage());
+//							e.printStackTrace();
+//						}
+//					}
+		}
+		else if (requestHeader.getContentType().equals("image/png")) {
+			byte[] payloadData = getBinaryContent(input, requestHeader.getContentLength());
+			Path writeDestination = Paths.get(servingDirectory + "/uploaded/FINALE.png");
+
+			System.out.println("writing a file...");
+			try (OutputStream out = new FileOutputStream(servingDirectory.getAbsolutePath() + "/uploaded//FINALE.png")) {
+				out.write(payloadData);
+			}
+			catch (Exception e) {
+				System.out.println("Something went wrong: " + e.getMessage());
+				e.printStackTrace();
+			}
+		}
 	}
 
 	// TODO -- Make a put implementation here!
-	private void processPut(RequestParser requestHeader, OutputStream output) {
+	private void processPut(RequestParser requestHeader, OutputStream output) throws IOException {
 
 	}
 
@@ -583,6 +594,7 @@ public class ClientThread implements Runnable {
 			output.flush();
 		}
 	}
+
 	private void sendError(StatusCode finalStatus, OutputStream output) throws IOException {
 		byte[] headerBytes = (ResponseBuilder.generateHeader("text/html", finalStatus, ResponseBuilder.PAGE_404.length())).getBytes();
 

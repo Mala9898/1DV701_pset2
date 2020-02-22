@@ -9,6 +9,7 @@ package HTTPServer;
 // credit: inspired by https://howtodoinjava.com/java/enum/java-enum-string-example/
 
 public enum StatusCode {
+    INFORMATIONAL_100_CONTINUE("100 Continue"),
     SUCCESS_200_OK("200 OK"),
     SUCCESS_201_CREATED("201 Created"),
     SUCCESS_204_NO_CONTENT("204 No Content"),

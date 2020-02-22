@@ -33,14 +33,13 @@ public class RequestParser {
 	private String boundary;
 
 
-
-	private String contentLength;
+	private int contentLength;
 
 	// TODO -- Check if more types are required.
 
 	// TODO -- Throw IllegalArgument if a poorly formatted request is received, ex - if you wrote some garbage into telnet.
 
-	public RequestParser(byte[] req) {
+	public RequestParser(byte[] req) throws NumberFormatException {
 		// Trim unnecessary variables as time goes on
 		requestBytes = req;
 		requestFull = new String(requestBytes);
@@ -58,8 +57,8 @@ public class RequestParser {
 	}
 
 	// When you want to know how much data the client wants to PUT or POST.
-	public int getContentLength() throws NumberFormatException {
-		return Integer.parseInt(contentLength.trim());
+	public int getContentLength() {
+		return contentLength;
 	}
 
 	// Get host that client wants to connect to
@@ -95,7 +94,7 @@ public class RequestParser {
 		return boundary;
 	}
 
-	private void processData() {
+	private void processData() throws NumberFormatException {
 		String[] processing;
 		boolean first = true;
 		for (String line : requestLines) {
@@ -119,25 +118,11 @@ public class RequestParser {
 					connection = processing[1].trim();
 				}
 				else if (processing[0].equalsIgnoreCase("Content-Type")) {
-//					contentType = processing[1].trim();
-					// Request-Line   = Method SP Request-URI SP HTTP-Version CRLF
-					Pattern pattern = Pattern.compile( "^Content-Type:[\\s]{0,1}(?<contentType>[\\w\\/-]+)(?:\\s*;\\s*boundary\\s*=\\s*\"?(?<boundary>[\\w-]*))?[\" ]?$", Pattern.MULTILINE | Pattern.CASE_INSENSITIVE);
-					Matcher matcher = pattern.matcher(line);
-
-					while (matcher.find()) {
-						System.out.printf("group count: %d %n", matcher.groupCount());
-						if(matcher.groupCount() == 1) {
-							contentType = matcher.group("contentType");
-						} else if(matcher.groupCount()==2) {
-
-							contentType = matcher.group("contentType");
-							boundary = "--"+matcher.group("boundary"); // boundaries are always prefixed by additional double dashes
-						}
-					}
-
+					// Special multipart processing
+					processContentType(line);
 				}
 				else if (processing[0].equalsIgnoreCase("Content-Length")) {
-					contentLength = processing[1].trim();
+					contentLength = Integer.parseInt(processing[1].trim());
 				}
 				else {
 					System.out.println("Not supported: " + processing[0]);
@@ -146,6 +131,27 @@ public class RequestParser {
 				// TODO - Payload start, Accept (MIME types)
 			}
 		}
+	}
+
+	// TODO - Add extensive comments, what input is given, what happens to the input, what is the output
+	// TODO - Refactor this to return a String instead of being a void method
+	private void processContentType(String line) {
+		//					contentType = processing[1].trim();
+		// Request-Line   = Method SP Request-URI SP HTTP-Version CRLF
+		Pattern pattern = Pattern.compile("^Content-Type:[\\s]{0,1}(?<contentType>[\\w\\/-]+)(?:\\s*;\\s*boundary\\s*=\\s*\"?(?<boundary>[\\w-]*))?[\" ]?$", Pattern.MULTILINE | Pattern.CASE_INSENSITIVE);
+		Matcher matcher = pattern.matcher(line);
+
+		while (matcher.find()) {
+			System.out.printf("group count: %d %n", matcher.groupCount());
+			if (matcher.groupCount() == 1) {
+				contentType = matcher.group("contentType");
+			}
+			else if (matcher.groupCount() == 2) {
+				contentType = matcher.group("contentType");
+				boundary = "--" + matcher.group("boundary"); // boundaries are always prefixed by additional double dashes
+			}
+		}
+
 	}
 
 
