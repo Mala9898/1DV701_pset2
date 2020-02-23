@@ -47,12 +47,9 @@ public class ClientThread implements Runnable {
 			inputStream = clientSocket.getInputStream();
 		}
 		catch (IOException e) {
-			// TODO - Add better error handling
 			System.err.println("Error when creating input or output stream: " + e.getMessage());
 			failure = true;
 		}
-
-		System.out.println("Using directory: " + servingDirectory.getAbsolutePath());
 
 		RequestParser requestParser = new RequestParser();
 		Request request = null;
@@ -62,8 +59,8 @@ public class ClientThread implements Runnable {
 			request = requestParser.parse(requestHeader);
 		}
 		catch (IOException e) {
-			System.err.println("Bad request received");
 			try {
+				System.err.println("Bad request received");
 				sendError(StatusCode.CLIENT_ERROR_400_BAD_REQUEST);
 			}
 			catch (IOException ex) {
@@ -71,7 +68,7 @@ public class ClientThread implements Runnable {
 			}
 			failure = true;
 		} catch (Exception e) {
-			e.printStackTrace();
+			System.err.println("IOException: "+e.getMessage());
 		}
 
 		if (!failure) {
@@ -120,211 +117,9 @@ public class ClientThread implements Runnable {
 		System.out.println("Thread terminating");
 	}
 
-	// TODO - Support if the content sent came in multiple chunks of TCP data, we do NOT have to support Transfer-Encoding: Chunked!! We can refuse this kind of request.
-	private ArrayList<MultipartObject> getMultipartContent(int contentLength, String _boundary) throws IOException {
 
-		BufferedInputStream reader = new BufferedInputStream(inputStream);
 
-		String boundarySTART = _boundary; // "--XYZ"
-		String boundary = _boundary + "\r\n";
-		String payloadStart = "\r\n\r\n";
-		String boundaryAnotherPart = "\r\n";
-		String boundaryEndPart = "--";
-		int contentBufferLength = boundary.length() + 4;
 
-		ArrayList<MultipartObject> toReturn = new ArrayList<MultipartObject>();
-		ByteArrayOutputStream contentBuffer = new ByteArrayOutputStream();
-		ByteArrayOutputStream headerBuffer = new ByteArrayOutputStream();
-		ByteBuffer tempHeaderBuffer = ByteBuffer.allocate(1024);
-		ByteBuffer tempBuffer = ByteBuffer.allocate(contentBufferLength);
-
-		int readByte = 0;
-
-		boolean isPart = false;
-		boolean isPartPayload = false;
-		boolean boundaryCheckingMode = false;
-		boolean canOnlyBeEnd = false;
-		int matchCounter = 0;
-		int partPayloadStartMatchCounter = 0;
-		int partPayloadEndMatchCounter = 0;
-
-		int boundaryAnotherPartCounter = 0;
-		int boundaryEndPartCounter = 0;
-		while ((readByte = reader.read()) != -1) {
-			// detect start boundary
-			if (!isPart) {
-				if (readByte == (int) boundary.charAt(matchCounter)) {
-					matchCounter += 1;
-					if (matchCounter == boundary.length()) {
-						isPart = true;
-//						System.out.println("Starting boundary detected!");
-						continue;
-					}
-				}
-				else {
-					matchCounter = 0;
-					continue;
-				}
-			}
-
-			// we're at least past the header start boundary
-			if (isPart) {
-				if (!isPartPayload) {
-					tempHeaderBuffer.put((byte) readByte);
-
-					// check if we're at start of payload "\r\n\r\n"
-					if (readByte == (int) payloadStart.charAt(partPayloadStartMatchCounter)) {
-						partPayloadStartMatchCounter += 1;
-						if (partPayloadStartMatchCounter == payloadStart.length()) {
-							isPartPayload = true;
-//							System.out.println("Start of part payload detected!");
-
-							int endCondition = tempHeaderBuffer.position() - 4;
-							tempHeaderBuffer.flip();
-							for (int i = 0; i < endCondition; i++) {
-								byte toCopy = tempHeaderBuffer.get();
-								headerBuffer.write(toCopy);
-							}
-
-							byte[] headerBytes = headerBuffer.toByteArray();
-//							System.out.printf("header: {%s} %n", new String(headerBytes, 0, headerBytes.length));
-
-							continue;
-						}
-						else {
-							continue;
-						}
-					}
-					else {
-						partPayloadStartMatchCounter = 0;
-						continue;
-					}
-				}
-
-				if (isPartPayload) {
-
-					// here -> --XYZ|
-					if (partPayloadEndMatchCounter < boundarySTART.length()) {
-						if (readByte == (int) boundarySTART.charAt(partPayloadEndMatchCounter)) {
-//                        boundaryCheckingMode = true;
-							partPayloadEndMatchCounter += 1;
-
-							// --XYZ detected: enter boundary mode
-							if (partPayloadEndMatchCounter == boundarySTART.length()) {
-								boundaryCheckingMode = true;
-
-//								System.out.println("--XYZ detected ... entering boundary checking mode");
-								continue;
-							}
-							else {
-								// save byte to a temporary buffer in case it turns out to be a false alarm
-								tempBuffer.put((byte) readByte);
-								continue;
-							}
-						}
-					}
-					// --XYZ| <-- here
-					else {
-						// three options
-						// 1. --XYZ-- (end of multipart/form-data)
-						// 2. --XYZ (another part)
-						// 3. --XYZ{anything} false alarm
-						if (boundaryCheckingMode) {
-							if (readByte == (int) boundaryEndPart.charAt(boundaryEndPartCounter)) {
-								canOnlyBeEnd = true;
-								boundaryEndPartCounter += 1;
-								if (boundaryEndPartCounter == boundaryEndPart.length()) {
-//									System.out.println("END of multipart found");
-									boundaryCheckingMode = false;
-									tempBuffer = ByteBuffer.allocate(contentBufferLength);
-									partPayloadEndMatchCounter = 0;
-									boundaryEndPartCounter = 0;
-									partPayloadStartMatchCounter = 0;
-
-									MultipartObject multipartObject = new MultipartObject(headerBuffer.toByteArray(), contentBuffer.toByteArray());
-									toReturn.add(multipartObject);
-
-									headerBuffer.reset();
-									tempHeaderBuffer = ByteBuffer.allocate(1024);
-
-									isPartPayload = false;
-									matchCounter = 0;
-									break;
-								}
-								continue;
-							}
-							else if (!canOnlyBeEnd) {
-								if (readByte == (int) boundaryAnotherPart.charAt(boundaryAnotherPartCounter)) {
-									boundaryAnotherPartCounter += 1;
-									if (boundaryAnotherPartCounter == boundaryAnotherPart.length()) {
-//										System.out.println("another multipart section found");
-										boundaryCheckingMode = false;
-										tempBuffer = ByteBuffer.allocate(contentBufferLength);
-										partPayloadEndMatchCounter = 0;
-										boundaryAnotherPartCounter = 0;
-										partPayloadStartMatchCounter = 0;
-
-										isPartPayload = false;
-										matchCounter = 0;
-
-										MultipartObject multipartObject = new MultipartObject(headerBuffer.toByteArray(), contentBuffer.toByteArray());
-										toReturn.add(multipartObject);
-
-										headerBuffer.reset();
-										tempHeaderBuffer = ByteBuffer.allocate(1024);
-
-										contentBuffer.reset();
-										continue;
-									}
-									continue;
-								}
-							}
-
-						}
-					}
-
-					if (partPayloadEndMatchCounter > 0) {
-						// check if we have to write what a false alarm when detecting the end
-						tempBuffer.flip(); // make the end of buffer the position of the last element
-						while (tempBuffer.hasRemaining()) {
-							contentBuffer.write(tempBuffer.get());
-						}
-						tempBuffer = ByteBuffer.allocate(contentBufferLength);
-						partPayloadEndMatchCounter = 0;
-					}
-
-					// current byte is part of a payload
-					contentBuffer.write((byte) readByte);
-
-				}
-			}
-		}
-
-		return toReturn;
-
-	}
-
-	private byte[] getBinaryContent(InputStream in, int contentLength) throws IOException {
-		byte[] content = new byte[contentLength];
-
-		// credit: the use of ByteArrayOutputStream: https://www.baeldung.com/convert-input-stream-to-array-of-bytes
-		ByteArrayOutputStream contentBuffer = new ByteArrayOutputStream();
-
-		int totalRead = 0;
-		int bytesRead = 0;
-		while ((bytesRead = in.read(content, 0, contentLength)) != -1) {
-			contentBuffer.write(content, 0, bytesRead);
-			totalRead += bytesRead;
-			System.out.printf("read  %10d/%d %n", totalRead, contentLength);
-			if (totalRead >= contentLength) {
-				System.out.println("got all the data");
-				break;
-			}
-		}
-		contentBuffer.close();
-		// TODO -- Throw exception if bytes read was less than expected content length within a suitable timeout.
-		return contentBuffer.toByteArray();
-	}
 
 	// Returns a request header
 	private byte[] getRequest() throws IOException {
@@ -453,9 +248,12 @@ public class ClientThread implements Runnable {
 		System.out.println("GOT POST REQUEST!");
 		System.out.printf("content-type={%s} boundary={%s} %n", request.getContentType(), request.getBoundary());
 
+		BodyParser bodyParser = new BodyParser();
+
 		if (request.getContentType().equals("multipart/form-data")) {
 			// HERE WE HAVE ACCESS TO ALL THE INDIVIDUAL MULTIPART OBJECTS! (including, name, filename, payload etc.)
-			ArrayList<MultipartObject> payloadData = getMultipartContent(request.getContentLength(), request.getBoundary());
+
+			ArrayList<MultipartObject> payloadData = bodyParser.getMultipartContent(inputStream, request.getContentLength(), request.getBoundary());
 
 			if (payloadData.size() >= 1) {
 				for (MultipartObject multipartObject : payloadData) {
@@ -483,7 +281,7 @@ public class ClientThread implements Runnable {
 			// 200 OK or 204 if replacing
 		}
 		else if (request.getContentType().equals("image/png")) {
-			byte[] payloadData = getBinaryContent(inputStream, request.getContentLength());
+			byte[] payloadData = bodyParser.getBinaryContent(inputStream, request.getContentLength());
 			Path writeDestination = Paths.get(servingDirectory + "/uploaded/FINALE.png");
 
 			System.out.println("writing a file...");
@@ -498,6 +296,9 @@ public class ClientThread implements Runnable {
 	}
 
 	private void processPut(Request request) throws IOException {
+
+		BodyParser bodyParser = new BodyParser();
+
 		boolean internalError = false;
 		Path destination = Paths.get(servingDirectory + request.getPathRequest());
 		File requestedFile = new File(String.valueOf(destination));
@@ -520,7 +321,7 @@ public class ClientThread implements Runnable {
 		}
 		// check if resource already exists
 		boolean exists = requestedFile.exists();
-		byte[] payloadData = getBinaryContent(inputStream, request.getContentLength());
+		byte[] payloadData = bodyParser.getBinaryContent(inputStream, request.getContentLength());
 
 		// write or overwrite depending exist state
 		System.out.println("Attempting write...");
