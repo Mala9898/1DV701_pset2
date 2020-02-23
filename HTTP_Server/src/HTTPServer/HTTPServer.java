@@ -73,7 +73,8 @@ public class HTTPServer {
 
 		while (true) {
 			// wait for a client to connect. accept() blocks until a client connects
-			try (Socket clientSocket = serverSocket.accept()) {
+			try {
+				Socket clientSocket = serverSocket.accept();
 
 				// tell TCP to not be lazy by passing data to application layer immediately
 				clientSocket.setTcpNoDelay(true);
