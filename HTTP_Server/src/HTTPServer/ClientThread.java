@@ -71,7 +71,6 @@ public class ClientThread implements Runnable {
 
 		// Processes the request method, methods will send appropriate response.
 		if (!failure) {
-			String method = requestHeader.getMethod();
 			try {
 				String method = request.getMethod();
 				if (method.equals("GET")) {
