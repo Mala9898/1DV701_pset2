@@ -39,7 +39,7 @@ public class RequestParser {
 
 	// TODO -- Throw IllegalArgument if a poorly formatted request is received, ex - if you wrote some garbage into telnet.
 
-	public RequestParser(byte[] req) throws NumberFormatException {
+	public RequestParser(byte[] req) throws IllegalArgumentException {
 		// Trim unnecessary variables as time goes on
 		requestBytes = req;
 		requestFull = new String(requestBytes);
@@ -103,8 +103,13 @@ public class RequestParser {
 			// HTTP method is case sensitive!
 			if (first) {
 				processing = line.split("\\s+");
-				httpMain = processing;
-				first = false;
+				if (httpMain.length != 3) {
+					throw new IllegalArgumentException();
+				}
+				else {
+					httpMain = processing;
+					first = false;
+				}
 			}
 			else {
 				// User agent is split in a more sophisticated way, fix!

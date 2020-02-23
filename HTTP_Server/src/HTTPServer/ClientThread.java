@@ -41,7 +41,7 @@ public class ClientThread implements Runnable {
 
 	@Override
 	public void run() {
-
+		boolean failure = false;
 		try {
 			outputStream = new BufferedOutputStream(clientSocket.getOutputStream());
 			inputStream = clientSocket.getInputStream();
@@ -49,7 +49,7 @@ public class ClientThread implements Runnable {
 		catch (IOException e) {
 			// TODO - Add better error handling
 			System.err.println("Error when creating input or output stream: " + e.getMessage());
-			System.exit(1);
+			failure = true;
 		}
 
 		System.out.println("Using directory: " + servingDirectory.getAbsolutePath());
@@ -58,30 +58,45 @@ public class ClientThread implements Runnable {
 		try {
 			requestHeader = new RequestParser(getRequest());
 		}
-		catch (IOException e) {
-			System.err.println("Request parse failed, bad request received: " + e.getMessage());
-			System.exit(1);
+		catch (IllegalArgumentException e) {
+			System.err.println("Bad request received");
+			try {
+				sendError(StatusCode.CLIENT_ERROR_400_BAD_REQUEST);
+			}
+			catch (IOException ex) {
+				System.err.println("Error sending failed: " + e.getMessage());
+			}
+			failure = true;
 		}
-		try {
-			if (requestHeader.getMethod().equals("GET")) {
-				processGet(requestHeader);
+		catch (IOException e2) {
+			System.err.println("Socket failure: " + e2.getMessage());
+			failure = true;
+		}
+
+		if (!failure) {
+			try {
+				if (requestHeader.getMethod().equals("GET")) {
+					processGet(requestHeader);
+				}
+				else if (requestHeader.getMethod().equals("PUT")) {
+					processPut(requestHeader);
+				}
+				else if (requestHeader.getMethod().equals("POST")) {
+					processPost(requestHeader);
+				}
+				else {
+					sendError(StatusCode.CLIENT_ERROR_400_BAD_REQUEST);
+					System.out.println("Not supported");
+				}
 			}
-			else if (requestHeader.getMethod().equals("PUT")) {
-				processPut(requestHeader);
-			}
-			else if (requestHeader.getMethod().equals("POST")) {
-				processPost(requestHeader);
-			}
-			else {
-				// TODO - Send 400 Bad Request
-				System.out.println("Not supported");
+			catch (IOException e) {
+				System.err.println("Error when processing request: " + e.getMessage());
+				e.printStackTrace();
+				// TODO - Send 500 internal server error
 			}
 		}
-		catch (IOException e) {
-			System.err.println("Error when processing request: " + e.getMessage());
-			e.printStackTrace();
-			// TODO - Send 500 internal server error
-		}
+
+
 		try {
 			clientSocket.close();
 		}
@@ -377,13 +392,13 @@ public class ClientThread implements Runnable {
 
 		// -------- 403 FORBIDDEN FUNCTIONALITY --------
 		if(requestHeader.getPathRequest().startsWith("/forbidden")) {
-			sendResponse(StatusCode.CLIENT_ERROR_403_FORBIDDEN);
+			sendError(StatusCode.CLIENT_ERROR_403_FORBIDDEN);
 			return;
 		}
 
 
 		if (!requestedFile.getCanonicalPath().startsWith(servingDirectory.getCanonicalPath())) {
-			sendResponse(StatusCode.CLIENT_ERROR_403_FORBIDDEN);
+			sendError(StatusCode.CLIENT_ERROR_403_FORBIDDEN);
 			return;
 		}
 
@@ -397,7 +412,6 @@ public class ClientThread implements Runnable {
 
 				// If index html and index htm doesn't exist
 				if (!Files.isReadable(Paths.get(finalPath))) {
-					System.err.println("Resource not found");
 					error404 = true;
 				}
 			}
@@ -408,15 +422,15 @@ public class ClientThread implements Runnable {
 		}
 		// If file or folder does not exist.
 		else {
-			System.err.println("Resource not found");
 			error404 = true;
 		}
 
-		// If previous if-block indicates that resource does not exist, set response to path 404.html and 404 header.
 		if (error404) {
+			// If previous if-block indicates that resource does not exist, set response to path 404.html and 404 header.
 			sendContentResponse(error404Path, StatusCode.CLIENT_ERROR_404_NOT_FOUND);
 		}
 		else {
+			// Otherwise, send requested content.
 			sendContentResponse(finalPath, finalStatus);
 		}
 	}
@@ -446,7 +460,7 @@ public class ClientThread implements Runnable {
 			}
 			else {
 				System.err.println("NO MULTIPART DATA FOUND");
-				sendResponse(StatusCode.CLIENT_ERROR_400_BAD_REQUEST);
+				sendError(StatusCode.CLIENT_ERROR_400_BAD_REQUEST);
 				return;
 			}
 
@@ -469,7 +483,6 @@ public class ClientThread implements Runnable {
 		}
 	}
 
-	// TODO -- Make a put implementation here!
 	private void processPut(RequestParser requestHeader) throws IOException {
 		boolean internalError = false;
 		Path destination = Paths.get(servingDirectory + requestHeader.getPathRequest());
@@ -522,7 +535,7 @@ public class ClientThread implements Runnable {
 		// 200 OK if replacing
 	}
 
-	private void sendResponse(StatusCode statusCode) throws IOException {
+	private void sendError(StatusCode statusCode) throws IOException {
 		ResponseBuilder responseBuilder = new ResponseBuilder();
 		String body = "";
 		String header = "";
@@ -554,18 +567,18 @@ public class ClientThread implements Runnable {
 		}
 	}
 
-	private void sendRedirect(String location) throws IOException{
+	private void sendRedirect(String location) throws IOException {
 		ResponseBuilder responseBuilder = new ResponseBuilder();
 		String toWrite = responseBuilder.relocateResponse(location);
 		outputStream.write(toWrite.getBytes());
 		outputStream.flush();
 	}
 
-	/*
-	If you debug and look at the requested paths, you will see that the 'path' variable mixes (/) and (\), this still works fine with java.io.File.
-	Even with a double // or double \\, it io.File filter this out and still works.
-    */
 	private void sendContentResponse(String path, StatusCode finalStatus) throws IOException {
+		/*
+		If you debug and look at the requested paths, you will see that the 'path' variable mixes (/) and (\), this still works fine with java.io.File.
+		Even with a double // or double \\, it io.File filter this out and still works.
+        */
 		ResponseBuilder responseBuilder = new ResponseBuilder();
 		File f = new File(path);
 		System.out.println("Outputting to stream: " + f.getAbsolutePath());
