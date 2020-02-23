@@ -15,14 +15,23 @@ import java.util.concurrent.ThreadPoolExecutor;
  */
 public class HTTPServer {
 
-	private ThreadPoolExecutor executorService;
-	private ServerSocket serverSocket;
-	private File servingDirectory;
-	private int port = 80;
+	private static ThreadPoolExecutor executorService;
+	private static ServerSocket serverSocket;
+	private static File servingDirectory;
+	private static int port = 80;
+	private static final int UINT16_MAX = 65535;
 
+	public static void main(String[] args) {
+		if(args.length < 1)
+			printAndQuit("not enough arguments");
 
-	public HTTPServer() {
+		// this is very platform specific
+		if(!validPort(args[0]))
+			printAndQuit("port is out of range");
+		port = Integer.parseInt(args[0]);
 
+		serveStatic("public");
+		run();
 	}
 
 	public void setPort(int _port) {
@@ -36,7 +45,7 @@ public class HTTPServer {
 	 *
 	 * @param directory
 	 */
-	public void serveStatic(String directory) {
+	public static void serveStatic(String directory) {
 		try {
 			servingDirectory = new File(directory);
 			if (!servingDirectory.isDirectory()) {
@@ -50,7 +59,7 @@ public class HTTPServer {
 		}
 	}
 
-	public void run() {
+	public static void run() {
 
 		try {
 			// create a socket that awaits incoming clients
@@ -89,6 +98,41 @@ public class HTTPServer {
 				System.out.println("Thread creation failure, could not accept client: " + e.getMessage());
 			}
 		}
+	}
+
+	/**
+	 * is port value valid?
+	 * @param s
+	 * @return
+	 */
+	private static boolean validPort(String s) {
+		try {
+			if(inInclusiveRange(Integer.parseInt(s), 1, UINT16_MAX))
+				return true;
+		} catch (NumberFormatException e){
+			return false;
+		}
+		return false;
+	}
+
+	/**
+	 * helper math function to test if value is in [n1, n2]
+	 * @param value
+	 * @param n1 lower inclusive limit
+	 * @param n2 upper inclusive limit
+	 * @return
+	 */
+	private static boolean inInclusiveRange(int value, int n1, int n2) {
+		return (value >= n1) && (value <= n2);
+	}
+
+	/**
+	 * Prints a message and quits
+	 * @param message
+	 */
+	private static void printAndQuit(String message) {
+		System.out.println(message);
+		System.exit(-1);
 	}
 
 }

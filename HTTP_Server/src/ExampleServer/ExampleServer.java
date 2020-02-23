@@ -11,9 +11,9 @@ public class ExampleServer {
 
     public static void main(String[] args) {
 
-        HTTPServer server = new HTTPServer();
-        server.serveStatic("public");
-        server.run();
+//        HTTPServer server = new HTTPServer();
+//        server.serveStatic("public");
+//        server.run();
 
     }
 }

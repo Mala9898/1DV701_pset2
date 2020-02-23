@@ -31,3 +31,7 @@ out/
 
 # SOURCE:
 # https://github.com/github/gitignore/blob/master/Java.gitignore
+#
+
+.DS_Store
+/HTTP_Server/public/uploaded
