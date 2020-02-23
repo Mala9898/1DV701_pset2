@@ -369,16 +369,19 @@ public class ClientThread implements Runnable {
 		// TODO - maybe rewrite this to avoid creating a file object, maybe a path object is enough?
 		File requestedFile = new File(servingDirectory, requestHeader.getPathRequest());
 
+		// -------- TEST REDIRECT FUNCTIONALITY --------
 		if(requestHeader.getPathRequest().equals("/redirect")) {
 			sendRedirect("/redirectlanding");
+			return;
 		}
 
-		// prevent "../../" hacks
-		// https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/io/File.html#getCanonicalPath()
-		//  "removes redundant names such as "." and ".." from the pathname,
-		//   resolving symbolic links (on UNIX platforms), and converting drive letters to a standard case (on Microsoft Windows platforms)."
+		// -------- 403 FORBIDDEN FUNCTIONALITY --------
+		if(requestHeader.getPathRequest().startsWith("/forbidden")) {
+			sendResponse(StatusCode.CLIENT_ERROR_403_FORBIDDEN);
+			return;
+		}
 
-		// TODO - Check if this actually still works, changed servingDirectory.getPath() to servingDirectory.getCanonicalPath().
+
 		if (!requestedFile.getCanonicalPath().startsWith(servingDirectory.getCanonicalPath())) {
 			// TODO - Send 403 Forbidden!
 			System.err.println("400 bad request, terminating");
@@ -412,7 +415,6 @@ public class ClientThread implements Runnable {
 
 		// If previous if-block indicates that resource does not exist, set response to path 404.html and 404 header.
 		if (error404) {
-			System.out.println("error 404");
 //			sendResponse(StatusCode.CLIENT_ERROR_404_NOT_FOUND);
 			sendContentResponse(error404Path, StatusCode.CLIENT_ERROR_404_NOT_FOUND);
 		}
@@ -422,9 +424,6 @@ public class ClientThread implements Runnable {
 	}
 
 	private void processPost(RequestParser requestHeader) throws IOException {
-		// TODO: implement x-www-form-urlencoded, multi-part form, binary data.
-		// TODO: Detect content type that client is trying to send, this just shoves data into an image file.
-		// TODO limit this buffer
 		System.out.println("GOT POST REQUEST!");
 		System.out.printf("content-type={%s} boundary={%s} %n", requestHeader.getContentType(), requestHeader.getBoundary());
 
@@ -432,9 +431,9 @@ public class ClientThread implements Runnable {
 			// HERE WE HAVE ACCESS TO ALL THE INDIVIDUAL MULTIPART OBJECTS! (including, name, filename, payload etc.)
 			ArrayList<MultipartObject> payloadData = getMultipartContent(requestHeader.getContentLength(), requestHeader.getBoundary());
 
-			// print the received filenames
 			if (payloadData.size() >= 1) {
 				for (MultipartObject multipartObject : payloadData) {
+					// only save png images
 					if(multipartObject.getDispositionContentType().equals("image/png")){
 						System.out.printf("saving {%s} %n", multipartObject.getDispositionFilename());
 						try (OutputStream out = new FileOutputStream(servingDirectory.getAbsolutePath() + "/uploaded/" + multipartObject.getDispositionFilename())) {
@@ -538,11 +537,21 @@ public class ClientThread implements Runnable {
 
 	private void sendResponse(StatusCode statusCode) throws IOException {
 		ResponseBuilder responseBuilder = new ResponseBuilder();
+		String body = "";
+		String header = "";
 		switch (statusCode) {
 			case CLIENT_ERROR_404_NOT_FOUND:
 //				error404Path
-				String body = responseBuilder.HTMLMessage("404 not found");
-				String header = responseBuilder.generateGenericHeader("text/html", StatusCode.CLIENT_ERROR_404_NOT_FOUND, body.length());
+				body = responseBuilder.HTMLMessage("404 not found");
+				header = responseBuilder.generateGenericHeader("text/html", StatusCode.CLIENT_ERROR_404_NOT_FOUND, body.length());
+				outputStream.write(header.getBytes());
+				outputStream.write(body.getBytes());
+				outputStream.flush();
+				break;
+
+			case CLIENT_ERROR_403_FORBIDDEN:
+				body = responseBuilder.HTMLMessage("403 Forbidden");
+				header = responseBuilder.generateGenericHeader("text/html", StatusCode.CLIENT_ERROR_403_FORBIDDEN, body.length());
 				outputStream.write(header.getBytes());
 				outputStream.write(body.getBytes());
 				outputStream.flush();
