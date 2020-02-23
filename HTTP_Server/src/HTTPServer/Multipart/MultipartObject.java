@@ -29,7 +29,7 @@ public class MultipartObject {
 
         String line = new String(header);
 
-        Pattern pattern = Pattern.compile( "^Content-Disposition:[\\s]{0,1}(?<disposition>[\\w\\/-]+)(?:;\\s{0,1}name=\"(?<name>[\\w-]+)\")(?:;\\s{0,1}filename=\"(?<filename>[\\w._-]+)\")?", Pattern.MULTILINE | Pattern.CASE_INSENSITIVE);
+        Pattern pattern = Pattern.compile( "^Content-Disposition:[\\s]{0,1}(?<disposition>[\\w\\/-]+)(?:;\\s{0,1}name=\"(?<name>[\\w-\\[\\]]+)\")(?:;\\s{0,1}filename=\"(?<filename>[\\w._ \\-]+)\")?", Pattern.MULTILINE | Pattern.CASE_INSENSITIVE);
         Matcher matcher = pattern.matcher(line);
 
         while (matcher.find()) {

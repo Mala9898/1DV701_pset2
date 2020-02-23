@@ -52,113 +52,6 @@ public class ClientThread implements Runnable {
 		}
 
 		System.out.println("Using directory: " + servingDirectory.getAbsolutePath());
-/*
-
-        // TODO -- Shove all this into RequestParser
-
-            byte[] requestBuffer = new byte[REQUEST_BUFFER_LEN];
-            int totalBytesRead = inputStream.read(requestBuffer, 0, REQUEST_BUFFER_LEN);
-            System.out.println("BYTES READ: "+totalBytesRead);
-//            RequestParser test = new RequestParser(requestBuffer, totalBytesRead);
-
-            // todo: send "414 URI Too Long" error if totalBytesRead >= 4096:
-            String requestString = new String(requestBuffer, 0, totalBytesRead);
-
-//            int indexOfPayloadStart = requestString.indexOf("\r\n\r\n");
-//            System.out.println("\t PAYLOAD START: " + indexOfPayloadStart);
-
-            // split by \r\n. additionally, "+" removes empty lines.
-            // https://stackoverflow.com/questions/454908/split-java-string-by-new-line
-//            String[] requestLines = requestString.split("[\\r\\n]+");
-//            String[] requestLines = requestString.replace(" ", "").split("[\\s]");
-//            String[] requestLines = requestString.split("[\\s]");
-            String[] requestLines = requestString.split("[\\r\\n\\r\\n]");
-
-//            Pattern ptrn = Pattern.compile("([a-zA-Z]+) (\\d+)");
-//            Pattern pattern = Pattern.compile("(.*)\\s\\s(.*)");
-//            Pattern pattern = Pattern.compile(".*^(\\r\\n\\r\\n)$.*");
-//            Pattern pattern = Pattern.compile( "\\r\\n\\r\\n", Pattern.MULTILINE);
-            Pattern pattern = Pattern.compile( "^(\\r\\n|\\r|\\n)*$", Pattern.MULTILINE);
-
-            Matcher matcher = pattern.matcher(requestString);
-            MatchResult matchResult = matcher.toMatchResult();
-
-            int headerStart = 0;
-            int headerEnd = 0;
-            int payloadStart = 0;
-            int payloadEnd = 0;
-
-            boolean first = true;
-            while (matcher.find()) {
-                if(first) {
-                    headerEnd = matcher.start();
-                    payloadStart= matcher.start();
-                    payloadEnd = requestString.length();
-                    first = false;
-                }
-                System.out.println(String.format("Match: %s at index [%d, %d]",
-                        matcher.group(), matcher.start(), matcher.end()));
-            }
-            String extractedHeader = requestString.substring(0, headerEnd);
-            String extractedPayload = requestString.substring(payloadStart, payloadEnd);
-
-            // GET REQUEST LINE
-            // Request-Line   = Method SP Request-URI SP HTTP-Version CRLF
-            Pattern patternRequestline = Pattern.compile( "^(GET|POST|HEAD|PUT)\\s+([\\/\\w?=%.]*)\\s+(HTTP\\/.*)");
-            Matcher matcher2 = patternRequestline.matcher(extractedHeader);
-            String[] firstLineParameters = {"","",""};
-            while (matcher2.find()) {
-                System.err.println(String.format("\tMatch: %s at index [%d, %d]",
-                        matcher2.group(), matcher2.start(), matcher2.end()));
-                System.out.printf("group count: %d %n", matcher2.groupCount());
-                if(matcher2.groupCount() == 3) {
-                    firstLineParameters[0]=matcher2.group(1);
-                    firstLineParameters[1]=matcher2.group(2);
-                    firstLineParameters[2]=matcher2.group(3);
-                }
-            }
-
-            // GET CONTENT TYPE
-            Pattern patternContentType = Pattern.compile( "^(Content-Type):\\s*([\\w\\/-]+)", Pattern.MULTILINE | Pattern.CASE_INSENSITIVE);
-            Matcher matcher3 = patternContentType.matcher(extractedHeader);
-            String requestContentType = "";
-            while (matcher3.find()) {
-                if(matcher3.groupCount() == 2) {
-                    requestContentType = matcher3.group(2);
-                    break;
-                }
-            }
-            System.out.printf("\t contenttype: {%s} %n", requestContentType);
-
-            // GET CONTENT LENGTH
-            Pattern patternContentLength = Pattern.compile( "^(Content-Length):\\s*([\\w\\/-]+)", Pattern.MULTILINE | Pattern.CASE_INSENSITIVE);
-            Matcher matcher4 = patternContentLength.matcher(extractedHeader);
-            int requestContentLength = 0;
-            while (matcher4.find()) {
-                if(matcher4.groupCount() == 2) {
-                    try {
-                        requestContentLength = Integer.parseInt(matcher4.group(2));
-                    } catch (NumberFormatException e) {
-                        // TODO send 4XX client error
-                    }
-                    break;
-                }
-            }
-            System.out.printf("\t content-length: {%s} %n", requestContentLength);
-
-//            String reqLine = matcherRequestline.group();
-//            Arrays.stream(requestLines).forEach(line -> System.out.println("line:{"+line+"}"));
-
-
-            if(firstLineParameters.length < 3){
-                // TODO send 400 Bad Request
-            }
-
-            String requestMethod = firstLineParameters[0];
-            String requestURI = firstLineParameters[1];
-
-//            Arrays.stream(firstLineParameters).forEach(line -> System.out.println("\tfirstLine:{"+line+"}"));
-*/
 
 		RequestParser requestHeader = null;
 		try {
@@ -535,13 +428,15 @@ public class ClientThread implements Runnable {
 			// print the received filenames
 			if (payloadData.size() >= 1) {
 				for (MultipartObject multipartObject : payloadData) {
-					System.out.printf("saving {%s} %n", multipartObject.getDispositionFilename());
-					try (OutputStream out = new FileOutputStream(servingDirectory.getAbsolutePath() + "/uploaded/" + multipartObject.getDispositionFilename())) {
-						out.write(multipartObject.getData());
-					}
-					catch (Exception e) {
-						System.out.println("Something went wrong: " + e.getMessage());
-						e.printStackTrace();
+					if(multipartObject.getDispositionContentType().equals("image/png")){
+						System.out.printf("saving {%s} %n", multipartObject.getDispositionFilename());
+						try (OutputStream out = new FileOutputStream(servingDirectory.getAbsolutePath() + "/uploaded/" + multipartObject.getDispositionFilename())) {
+							out.write(multipartObject.getData());
+						}
+						catch (Exception e) {
+							System.out.println("Something went wrong: " + e.getMessage());
+							e.printStackTrace();
+						}
 					}
 				}
 			}
