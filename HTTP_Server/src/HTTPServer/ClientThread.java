@@ -5,7 +5,6 @@ import HTTPServer.Multipart.MultipartObject;
 import java.io.*;
 import java.net.Socket;
 import java.net.URLConnection;
-import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -17,7 +16,6 @@ import java.util.ArrayList;
  * 2020-02-15
  */
 
-// TODO: implement static serving
 
 public class ClientThread implements Runnable {
 
@@ -27,7 +25,6 @@ public class ClientThread implements Runnable {
 	private String error404Path;
 	private Socket clientSocket;
 	private File servingDirectory;
-	//    private final int REQUEST_BUFFER_LEN = 4096;
 	private final int REQUEST_BUFFER_LEN = 90000;
 
 	OutputStream outputStream = null;
@@ -85,7 +82,7 @@ public class ClientThread implements Runnable {
 				}
 				else if (method.equals("HEAD")) {
 					// TODO
-					// processHead();
+//					 processHead();
 				}
 				else if (method.equals("CONNECT") || method.equals("DELETE") || method.equals("OPTIONS") || method.equals("TRACE") || method.equals("PATCH")) {
 					sendError(StatusCode.SERVER_ERROR_501_NOT_IMPLEMENTED);
@@ -118,12 +115,10 @@ public class ClientThread implements Runnable {
 	}
 
 
-
-
-
 	// Returns a request header
 	private byte[] getRequest() throws IOException {
-		ArrayList<Byte> bytes = new ArrayList<>();
+		ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+
 		byte read;
 		boolean run = true;
 
@@ -135,7 +130,7 @@ public class ClientThread implements Runnable {
 			if ((read = (byte) inputStream.read()) != -1) {
 				System.out.print((char) read);
 				// Add byte to list.
-				bytes.add(read);
+				bytes.write(read);
 				// On CR or LF
 				if (read == '\r' || read == '\n') {
 					if (first) {
@@ -159,29 +154,13 @@ public class ClientThread implements Runnable {
 					first = true;
 				}
 			}
-			// If -1 is read, EOF has been reached which means the socket received a FIN/ACK
-			// ---> NOT REALLY TRUE: -1 can be received when sender closes their TCP output (tcp is bidirectional). They can still listen on their input and the socket is alive.
-			// ---> server closed the connection prematurely when I tried a GET /index.html with Postman (Insomnia alternative)
 			else {
-				// throw new IOException("Host closed connection");
-				// Terminates while loop if -1 received.
 				run = false;
 			}
 		}
-		return byteConversion(bytes);
+		return bytes.toByteArray();
 	}
 
-	// Takes a Byte list and returns a primitive byte[] array with elements unpacked.
-	private byte[] byteConversion(ArrayList<Byte> bytesIn) {
-		// Why 0? Compiler wants it that way, doesn't actually try to stuff everything into an empty array.
-		Byte[] objectBytes = bytesIn.toArray(new Byte[0]);
-		byte[] primitiveReturnBytes = new byte[objectBytes.length];
-		int i = 0;
-		for (Byte b : objectBytes) {
-			primitiveReturnBytes[i++] = b;
-		}
-		return primitiveReturnBytes;
-	}
 
 	// Processes a received GET Request, handles case where page is not found. Any IO exceptions are passed up to the run() method.
 	private void processGet(Request request) throws IOException {
