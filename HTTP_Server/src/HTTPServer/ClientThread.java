@@ -406,10 +406,12 @@ public class ClientThread implements Runnable {
 	private byte[] getRequest(InputStream in) throws IOException {
 		ArrayList<Byte> bytes = new ArrayList<>();
 		byte read;
-		boolean first = true;
-		boolean duo = false;
+		boolean run = true;
 
-		while (true) {
+		boolean first = true;
+		boolean second = false;
+
+		while (run) {
 			// Read bytes, valid header is ALWAYS in ASCII.
 			if ((read = (byte) in.read()) != -1) {
 				System.out.print((char) read);
@@ -421,20 +423,20 @@ public class ClientThread implements Runnable {
 						// On CR
 						first = false;
 					}
-					// SonarLint is wrong, duo does turn true on CRLFx2!!
-					// On CRLFx2
-					else if (duo) {
-						break;
+					// SonarLint is wrong, second does turn true on CRLFx2!!
+					// On CRLFx2, terminate while loop.
+					else if (second) {
+						run = false;
 					}
 					else {
 						// On LF
-						duo = true;
+						second = true;
 						first = true;
 					}
 				}
 				// On any character other than CR or LF
 				else {
-					duo = false;
+					second = false;
 					first = true;
 				}
 			}
@@ -442,8 +444,9 @@ public class ClientThread implements Runnable {
 			// ---> NOT REALLY TRUE: -1 can be received when sender closes their TCP output (tcp is bidirectional). They can still listen on their input and the socket is alive.
 			// ---> server closed the connection prematurely when I tried a GET /index.html with Postman (Insomnia alternative)
 			else {
-//				throw new IOException("Host closed connection");
-				break;
+				// throw new IOException("Host closed connection");
+				// Terminates while loop if -1 received.
+				run = false;
 			}
 		}
 		return byteConversion(bytes);
@@ -461,10 +464,11 @@ public class ClientThread implements Runnable {
 		return primitiveReturnBytes;
 	}
 
+	// Processes a received GET Request, handles case where page is not found. Any IO exceptions are passed up to the run() method.
 	private void processGet(RequestParser requestHeader, OutputStream output) throws IOException {
 		String requestedPath = servingDirectory.getAbsolutePath() + requestHeader.getPathRequest();
 		String finalPath = "";
-		boolean set404error = false;
+		boolean error404 = false;
 		StatusCode finalStatus = StatusCode.SUCCESS_200_OK;
 
 		// TODO - maybe rewrite this to avoid creating a file object, maybe a path object is enough?
@@ -493,7 +497,7 @@ public class ClientThread implements Runnable {
 				// If index html and index htm doesn't exist
 				if (!Files.isReadable(Paths.get(finalPath))) {
 					System.err.println("Resource not found");
-					set404error = true;
+					error404 = true;
 				}
 			}
 		}
@@ -504,17 +508,15 @@ public class ClientThread implements Runnable {
 		// If file or folder does not exist.
 		else {
 			System.err.println("Resource not found");
-			set404error = true;
+			error404 = true;
 		}
 
 		// If previous if-block indicates that resource does not exist, set response to path 404.html and 404 header.
-		if (set404error) {
-			finalStatus = StatusCode.CLIENT_ERROR_404_NOT_FOUND;
-//			finalPath = error404HtmlPath;
-			sendError(StatusCode.CLIENT_ERROR_404_NOT_FOUND, output);
+		if (error404) {
+			sendResponse(error404Path, StatusCode.CLIENT_ERROR_404_NOT_FOUND, output);
 		}
 		else {
-			generateAndSendOutput(finalPath, finalStatus, output);
+			sendResponse(finalPath, finalStatus, output);
 		}
 	}
 
@@ -583,24 +585,15 @@ public class ClientThread implements Runnable {
 	If you debug and look at the requested paths, you will see that the finalPath variable mixes (/) and (\), this still works fine with java.io.File.
 	Even with a double // or double \\, it io.File filter this out and still works.
     */
-	private void generateAndSendOutput(String finalPath, StatusCode finalStatus, OutputStream output) throws IOException {
+	private void sendResponse(String finalPath, StatusCode finalStatus, OutputStream output) throws IOException {
 		File f = new File(finalPath);
 		System.out.println("Outputting to stream: " + f.getAbsolutePath());
 		byte[] headerBytes = (ResponseBuilder.generateHeader(URLConnection.guessContentTypeFromName(f.getName()), finalStatus, f.length())).getBytes();
 		if (f.canRead()) {
 			output.write(headerBytes);
 			output.write(Files.readAllBytes(Paths.get(f.getAbsolutePath())));
-			// flush() tells stream to send bytes immediately
+			// flush() tells stream to send the bytes into the TCP stream
 			output.flush();
 		}
-	}
-
-	private void sendError(StatusCode finalStatus, OutputStream output) throws IOException {
-		byte[] headerBytes = (ResponseBuilder.generateHeader("text/html", finalStatus, ResponseBuilder.PAGE_404.length())).getBytes();
-
-		output.write(headerBytes);
-		output.write(ResponseBuilder.PAGE_404.getBytes());
-		output.flush(); // flush() tells stream to send bytes immediately
-
 	}
 }
