@@ -113,10 +113,6 @@ public class ClientThread implements Runnable {
 		System.out.println("Thread terminating");
 	}
 
-
-
-
-
 	// Processes a received GET Request, handles case where page is not found. Any IO exceptions are passed up to the run() method.
 	private void processGet(Request request) throws IOException {
 		String requestedPath = servingDirectory.getAbsolutePath() + request.getPathRequest();
