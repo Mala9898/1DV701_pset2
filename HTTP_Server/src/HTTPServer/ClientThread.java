@@ -38,7 +38,9 @@ public class ClientThread implements Runnable {
 
 	@Override
 	public void run() {
+		// Failure boolean prevents request handling, kills thread prematurely.
 		boolean failure = false;
+
 		try {
 			outputStream = new BufferedOutputStream(clientSocket.getOutputStream());
 			inputStream = clientSocket.getInputStream();
@@ -67,7 +69,9 @@ public class ClientThread implements Runnable {
 			System.err.println("IOException: "+e.getMessage());
 		}
 
+		// Processes the request method, methods will send appropriate response.
 		if (!failure) {
+			String method = requestHeader.getMethod();
 			try {
 				String method = request.getMethod();
 				if (method.equals("GET")) {
@@ -85,6 +89,9 @@ public class ClientThread implements Runnable {
 				}
 				else if (method.equals("CONNECT") || method.equals("DELETE") || method.equals("OPTIONS") || method.equals("TRACE") || method.equals("PATCH")) {
 					sendError(StatusCode.SERVER_ERROR_501_NOT_IMPLEMENTED);
+				}
+				else if (method.equals("HEAD")) {
+					// processHead();
 				}
 				else {
 					sendError(StatusCode.CLIENT_ERROR_400_BAD_REQUEST);
