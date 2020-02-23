@@ -54,11 +54,14 @@ public class ClientThread implements Runnable {
 
 		System.out.println("Using directory: " + servingDirectory.getAbsolutePath());
 
-		RequestParser requestHeader = null;
+		RequestParser requestParser = new RequestParser();
+		Request request = null;
+
 		try {
-			requestHeader = new RequestParser(getRequest());
+			byte[] requestHeader = getRequest();
+			request = requestParser.parse(requestHeader);
 		}
-		catch (IllegalArgumentException e) {
+		catch (IOException e) {
 			System.err.println("Bad request received");
 			try {
 				sendError(StatusCode.CLIENT_ERROR_400_BAD_REQUEST);
@@ -67,22 +70,28 @@ public class ClientThread implements Runnable {
 				System.err.println("Error sending failed: " + e.getMessage());
 			}
 			failure = true;
-		}
-		catch (IOException e2) {
-			System.err.println("Socket failure: " + e2.getMessage());
-			failure = true;
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 
 		if (!failure) {
 			try {
-				if (requestHeader.getMethod().equals("GET")) {
-					processGet(requestHeader);
+				String method = request.getMethod();
+				if (method.equals("GET")) {
+					processGet(request);
 				}
-				else if (requestHeader.getMethod().equals("PUT")) {
-					processPut(requestHeader);
+				else if (method.equals("PUT")) {
+					processPut(request);
 				}
-				else if (requestHeader.getMethod().equals("POST")) {
-					processPost(requestHeader);
+				else if (method.equals("POST")) {
+					processPost(request);
+				}
+				else if (method.equals("HEAD")) {
+					// TODO
+					// processHead();
+				}
+				else if (method.equals("CONNECT") || method.equals("DELETE") || method.equals("OPTIONS") || method.equals("TRACE") || method.equals("PATCH")) {
+					sendError(StatusCode.SERVER_ERROR_501_NOT_IMPLEMENTED);
 				}
 				else {
 					sendError(StatusCode.CLIENT_ERROR_400_BAD_REQUEST);
@@ -91,12 +100,17 @@ public class ClientThread implements Runnable {
 			}
 			catch (IOException e) {
 				System.err.println("Error when processing request: " + e.getMessage());
-				e.printStackTrace();
-				// TODO - Send 500 internal server error
+				try {
+					sendError(StatusCode.SERVER_ERROR_500_INTERNAL_SERVER_ERROR);
+				}
+				catch (IOException ex) {
+					System.err.println("Failed to send error to client: " + e.getMessage());
+					ex.printStackTrace();
+				}
 			}
 		}
 
-
+		// Attempts to close the socket
 		try {
 			clientSocket.close();
 		}
@@ -375,23 +389,23 @@ public class ClientThread implements Runnable {
 	}
 
 	// Processes a received GET Request, handles case where page is not found. Any IO exceptions are passed up to the run() method.
-	private void processGet(RequestParser requestHeader) throws IOException {
-		String requestedPath = servingDirectory.getAbsolutePath() + requestHeader.getPathRequest();
+	private void processGet(Request request) throws IOException {
+		String requestedPath = servingDirectory.getAbsolutePath() + request.getPathRequest();
 		String finalPath = "";
 		boolean error404 = false;
 		StatusCode finalStatus = StatusCode.SUCCESS_200_OK;
 
 		// TODO - maybe rewrite this to avoid creating a file object, maybe a path object is enough?
-		File requestedFile = new File(servingDirectory, requestHeader.getPathRequest());
+		File requestedFile = new File(servingDirectory, request.getPathRequest());
 
 		// -------- TEST REDIRECT FUNCTIONALITY --------
-		if(requestHeader.getPathRequest().equals("/redirect")) {
+		if(request.getPathRequest().equals("/redirect")) {
 			sendRedirect("/redirectlanding");
 			return;
 		}
 
 		// -------- 403 FORBIDDEN FUNCTIONALITY --------
-		if(requestHeader.getPathRequest().startsWith("/forbidden")) {
+		if(request.getPathRequest().startsWith("/forbidden")) {
 			sendError(StatusCode.CLIENT_ERROR_403_FORBIDDEN);
 			return;
 		}
@@ -435,13 +449,13 @@ public class ClientThread implements Runnable {
 		}
 	}
 
-	private void processPost(RequestParser requestHeader) throws IOException {
+	private void processPost(Request request) throws IOException {
 		System.out.println("GOT POST REQUEST!");
-		System.out.printf("content-type={%s} boundary={%s} %n", requestHeader.getContentType(), requestHeader.getBoundary());
+		System.out.printf("content-type={%s} boundary={%s} %n", request.getContentType(), request.getBoundary());
 
-		if (requestHeader.getContentType().equals("multipart/form-data")) {
+		if (request.getContentType().equals("multipart/form-data")) {
 			// HERE WE HAVE ACCESS TO ALL THE INDIVIDUAL MULTIPART OBJECTS! (including, name, filename, payload etc.)
-			ArrayList<MultipartObject> payloadData = getMultipartContent(requestHeader.getContentLength(), requestHeader.getBoundary());
+			ArrayList<MultipartObject> payloadData = getMultipartContent(request.getContentLength(), request.getBoundary());
 
 			if (payloadData.size() >= 1) {
 				for (MultipartObject multipartObject : payloadData) {
@@ -468,8 +482,8 @@ public class ClientThread implements Runnable {
 			// 201 created if new
 			// 200 OK or 204 if replacing
 		}
-		else if (requestHeader.getContentType().equals("image/png")) {
-			byte[] payloadData = getBinaryContent(inputStream, requestHeader.getContentLength());
+		else if (request.getContentType().equals("image/png")) {
+			byte[] payloadData = getBinaryContent(inputStream, request.getContentLength());
 			Path writeDestination = Paths.get(servingDirectory + "/uploaded/FINALE.png");
 
 			System.out.println("writing a file...");
@@ -483,9 +497,9 @@ public class ClientThread implements Runnable {
 		}
 	}
 
-	private void processPut(RequestParser requestHeader) throws IOException {
+	private void processPut(Request request) throws IOException {
 		boolean internalError = false;
-		Path destination = Paths.get(servingDirectory + requestHeader.getPathRequest());
+		Path destination = Paths.get(servingDirectory + request.getPathRequest());
 		File requestedFile = new File(String.valueOf(destination));
 
 		// prevent "../../" hacks
@@ -506,7 +520,7 @@ public class ClientThread implements Runnable {
 		}
 		// check if resource already exists
 		boolean exists = requestedFile.exists();
-		byte[] payloadData = getBinaryContent(inputStream, requestHeader.getContentLength());
+		byte[] payloadData = getBinaryContent(inputStream, request.getContentLength());
 
 		// write or overwrite depending exist state
 		System.out.println("Attempting write...");
@@ -522,7 +536,7 @@ public class ClientThread implements Runnable {
 
 		if (exists) {
 			// send 204 no content if file existed
-			sendHeaderResponse(requestHeader.getPathRequest(), StatusCode.SUCCESS_204_NO_CONTENT);
+			sendHeaderResponse(request.getPathRequest(), StatusCode.SUCCESS_204_NO_CONTENT);
 		}
 		else if (internalError) {
 			System.err.println("Internal Server Error");
@@ -530,7 +544,7 @@ public class ClientThread implements Runnable {
 		}
 		else {
 			// send 201 created if new
-			sendHeaderResponse(requestHeader.getPathRequest(), StatusCode.SUCCESS_201_CREATED);
+			sendHeaderResponse(request.getPathRequest(), StatusCode.SUCCESS_201_CREATED);
 		}
 		// 200 OK if replacing
 	}
