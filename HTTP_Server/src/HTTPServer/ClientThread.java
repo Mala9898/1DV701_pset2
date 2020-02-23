@@ -5,7 +5,6 @@ import HTTPServer.Multipart.MultipartObject;
 import java.io.*;
 import java.net.Socket;
 import java.net.URLConnection;
-import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -17,7 +16,6 @@ import java.util.ArrayList;
  * 2020-02-15
  */
 
-// TODO: implement static serving
 
 public class ClientThread implements Runnable {
 
@@ -27,7 +25,6 @@ public class ClientThread implements Runnable {
 	private String error404Path;
 	private Socket clientSocket;
 	private File servingDirectory;
-	//    private final int REQUEST_BUFFER_LEN = 4096;
 	private final int REQUEST_BUFFER_LEN = 90000;
 
 	OutputStream outputStream = null;
@@ -53,44 +50,48 @@ public class ClientThread implements Runnable {
 			failure = true;
 		}
 
-		// This try-catch block tries to get the client request, sends 400 bad request if this failed
-		RequestParser requestHeader = null;
+		RequestParser requestParser = new RequestParser();
+		Request request = null;
+
 		try {
-			requestHeader = new RequestParser(getRequest());
+			request = requestParser.parseRequest(inputStream);
 		}
-		catch (IllegalArgumentException e) {
-			System.err.println("Bad request received");
+		catch (IOException e) {
 			try {
+				System.err.println("Bad request received");
 				sendError(StatusCode.CLIENT_ERROR_400_BAD_REQUEST);
 			}
 			catch (IOException ex) {
 				System.err.println("Error sending failed: " + e.getMessage());
 			}
 			failure = true;
-		}
-		catch (IOException e2) {
-			System.err.println("Socket failure: " + e2.getMessage());
-			failure = true;
+		} catch (Exception e) {
+			System.err.println("IOException: "+e.getMessage());
 		}
 
 		// Processes the request method, methods will send appropriate response.
 		if (!failure) {
 			String method = requestHeader.getMethod();
 			try {
+				String method = request.getMethod();
 				if (method.equals("GET")) {
-					processGet(requestHeader);
+					processGet(request);
 				}
 				else if (method.equals("PUT")) {
-					processPut(requestHeader);
+					processPut(request);
 				}
 				else if (method.equals("POST")) {
-					processPost(requestHeader);
+					processPost(request);
 				}
 				else if (method.equals("HEAD")) {
-					// processHead();
+					// TODO
+//					 processHead();
 				}
 				else if (method.equals("CONNECT") || method.equals("DELETE") || method.equals("OPTIONS") || method.equals("TRACE") || method.equals("PATCH")) {
 					sendError(StatusCode.SERVER_ERROR_501_NOT_IMPLEMENTED);
+				}
+				else if (method.equals("HEAD")) {
+					// processHead();
 				}
 				else {
 					sendError(StatusCode.CLIENT_ERROR_400_BAD_REQUEST);
@@ -119,292 +120,24 @@ public class ClientThread implements Runnable {
 		System.out.println("Thread terminating");
 	}
 
-	// TODO - Support if the content sent came in multiple chunks of TCP data, we do NOT have to support Transfer-Encoding: Chunked!! We can refuse this kind of request.
-	private ArrayList<MultipartObject> getMultipartContent(int contentLength, String _boundary) throws IOException {
-
-		BufferedInputStream reader = new BufferedInputStream(inputStream);
-
-		String boundarySTART = _boundary; // "--XYZ"
-		String boundary = _boundary + "\r\n";
-		String payloadStart = "\r\n\r\n";
-		String boundaryAnotherPart = "\r\n";
-		String boundaryEndPart = "--";
-		int contentBufferLength = boundary.length() + 4;
-
-		ArrayList<MultipartObject> toReturn = new ArrayList<MultipartObject>();
-		ByteArrayOutputStream contentBuffer = new ByteArrayOutputStream();
-		ByteArrayOutputStream headerBuffer = new ByteArrayOutputStream();
-		ByteBuffer tempHeaderBuffer = ByteBuffer.allocate(1024);
-		ByteBuffer tempBuffer = ByteBuffer.allocate(contentBufferLength);
-
-		int readByte = 0;
-
-		boolean isPart = false;
-		boolean isPartPayload = false;
-		boolean boundaryCheckingMode = false;
-		boolean canOnlyBeEnd = false;
-		int matchCounter = 0;
-		int partPayloadStartMatchCounter = 0;
-		int partPayloadEndMatchCounter = 0;
-
-		int boundaryAnotherPartCounter = 0;
-		int boundaryEndPartCounter = 0;
-		while ((readByte = reader.read()) != -1) {
-			// detect start boundary
-			if (!isPart) {
-				if (readByte == (int) boundary.charAt(matchCounter)) {
-					matchCounter += 1;
-					if (matchCounter == boundary.length()) {
-						isPart = true;
-//						System.out.println("Starting boundary detected!");
-						continue;
-					}
-				}
-				else {
-					matchCounter = 0;
-					continue;
-				}
-			}
-
-			// we're at least past the header start boundary
-			if (isPart) {
-				if (!isPartPayload) {
-					tempHeaderBuffer.put((byte) readByte);
-
-					// check if we're at start of payload "\r\n\r\n"
-					if (readByte == (int) payloadStart.charAt(partPayloadStartMatchCounter)) {
-						partPayloadStartMatchCounter += 1;
-						if (partPayloadStartMatchCounter == payloadStart.length()) {
-							isPartPayload = true;
-//							System.out.println("Start of part payload detected!");
-
-							int endCondition = tempHeaderBuffer.position() - 4;
-							tempHeaderBuffer.flip();
-							for (int i = 0; i < endCondition; i++) {
-								byte toCopy = tempHeaderBuffer.get();
-								headerBuffer.write(toCopy);
-							}
-
-							byte[] headerBytes = headerBuffer.toByteArray();
-//							System.out.printf("header: {%s} %n", new String(headerBytes, 0, headerBytes.length));
-
-							continue;
-						}
-						else {
-							continue;
-						}
-					}
-					else {
-						partPayloadStartMatchCounter = 0;
-						continue;
-					}
-				}
-
-				if (isPartPayload) {
-
-					// here -> --XYZ|
-					if (partPayloadEndMatchCounter < boundarySTART.length()) {
-						if (readByte == (int) boundarySTART.charAt(partPayloadEndMatchCounter)) {
-//                        boundaryCheckingMode = true;
-							partPayloadEndMatchCounter += 1;
-
-							// --XYZ detected: enter boundary mode
-							if (partPayloadEndMatchCounter == boundarySTART.length()) {
-								boundaryCheckingMode = true;
-
-//								System.out.println("--XYZ detected ... entering boundary checking mode");
-								continue;
-							}
-							else {
-								// save byte to a temporary buffer in case it turns out to be a false alarm
-								tempBuffer.put((byte) readByte);
-								continue;
-							}
-						}
-					}
-					// --XYZ| <-- here
-					else {
-						// three options
-						// 1. --XYZ-- (end of multipart/form-data)
-						// 2. --XYZ (another part)
-						// 3. --XYZ{anything} false alarm
-						if (boundaryCheckingMode) {
-							if (readByte == (int) boundaryEndPart.charAt(boundaryEndPartCounter)) {
-								canOnlyBeEnd = true;
-								boundaryEndPartCounter += 1;
-								if (boundaryEndPartCounter == boundaryEndPart.length()) {
-//									System.out.println("END of multipart found");
-									boundaryCheckingMode = false;
-									tempBuffer = ByteBuffer.allocate(contentBufferLength);
-									partPayloadEndMatchCounter = 0;
-									boundaryEndPartCounter = 0;
-									partPayloadStartMatchCounter = 0;
-
-									MultipartObject multipartObject = new MultipartObject(headerBuffer.toByteArray(), contentBuffer.toByteArray());
-									toReturn.add(multipartObject);
-
-									headerBuffer.reset();
-									tempHeaderBuffer = ByteBuffer.allocate(1024);
-
-									isPartPayload = false;
-									matchCounter = 0;
-									break;
-								}
-								continue;
-							}
-							else if (!canOnlyBeEnd) {
-								if (readByte == (int) boundaryAnotherPart.charAt(boundaryAnotherPartCounter)) {
-									boundaryAnotherPartCounter += 1;
-									if (boundaryAnotherPartCounter == boundaryAnotherPart.length()) {
-//										System.out.println("another multipart section found");
-										boundaryCheckingMode = false;
-										tempBuffer = ByteBuffer.allocate(contentBufferLength);
-										partPayloadEndMatchCounter = 0;
-										boundaryAnotherPartCounter = 0;
-										partPayloadStartMatchCounter = 0;
-
-										isPartPayload = false;
-										matchCounter = 0;
-
-										MultipartObject multipartObject = new MultipartObject(headerBuffer.toByteArray(), contentBuffer.toByteArray());
-										toReturn.add(multipartObject);
-
-										headerBuffer.reset();
-										tempHeaderBuffer = ByteBuffer.allocate(1024);
-
-										contentBuffer.reset();
-										continue;
-									}
-									continue;
-								}
-							}
-
-						}
-					}
-
-					if (partPayloadEndMatchCounter > 0) {
-						// check if we have to write what a false alarm when detecting the end
-						tempBuffer.flip(); // make the end of buffer the position of the last element
-						while (tempBuffer.hasRemaining()) {
-							contentBuffer.write(tempBuffer.get());
-						}
-						tempBuffer = ByteBuffer.allocate(contentBufferLength);
-						partPayloadEndMatchCounter = 0;
-					}
-
-					// current byte is part of a payload
-					contentBuffer.write((byte) readByte);
-
-				}
-			}
-		}
-
-		return toReturn;
-
-	}
-
-	private byte[] getBinaryContent(InputStream in, int contentLength) throws IOException {
-		byte[] content = new byte[contentLength];
-
-		// credit: the use of ByteArrayOutputStream: https://www.baeldung.com/convert-input-stream-to-array-of-bytes
-		ByteArrayOutputStream contentBuffer = new ByteArrayOutputStream();
-
-		int totalRead = 0;
-		int bytesRead = 0;
-		while ((bytesRead = in.read(content, 0, contentLength)) != -1) {
-			contentBuffer.write(content, 0, bytesRead);
-			totalRead += bytesRead;
-			System.out.printf("read  %10d/%d %n", totalRead, contentLength);
-			if (totalRead >= contentLength) {
-				System.out.println("got all the data");
-				break;
-			}
-		}
-		contentBuffer.close();
-		// TODO -- Throw exception if bytes read was less than expected content length within a suitable timeout.
-		return contentBuffer.toByteArray();
-	}
-
-	// Returns a request header
-	private byte[] getRequest() throws IOException {
-		ArrayList<Byte> bytes = new ArrayList<>();
-		byte read;
-		boolean run = true;
-
-		boolean first = true;
-		boolean second = false;
-
-		while (run) {
-			// Read bytes, valid header is ALWAYS in ASCII.
-			if ((read = (byte) inputStream.read()) != -1) {
-				System.out.print((char) read);
-				// Add byte to list.
-				bytes.add(read);
-				// On CR or LF
-				if (read == '\r' || read == '\n') {
-					if (first) {
-						// On CR
-						first = false;
-					}
-					// SonarLint is wrong, second does turn true on CRLFx2!!
-					// On CRLFx2, terminate while loop.
-					else if (second) {
-						run = false;
-					}
-					else {
-						// On LF
-						second = true;
-						first = true;
-					}
-				}
-				// On any character other than CR or LF
-				else {
-					second = false;
-					first = true;
-				}
-			}
-			// If -1 is read, EOF has been reached which means the socket received a FIN/ACK
-			// ---> NOT REALLY TRUE: -1 can be received when sender closes their TCP output (tcp is bidirectional). They can still listen on their input and the socket is alive.
-			// ---> server closed the connection prematurely when I tried a GET /index.html with Postman (Insomnia alternative)
-			else {
-				// throw new IOException("Host closed connection");
-				// Terminates while loop if -1 received.
-				run = false;
-			}
-		}
-		return byteConversion(bytes);
-	}
-
-	// Takes a Byte list and returns a primitive byte[] array with elements unpacked.
-	private byte[] byteConversion(ArrayList<Byte> bytesIn) {
-		// Why 0? Compiler wants it that way, doesn't actually try to stuff everything into an empty array.
-		Byte[] objectBytes = bytesIn.toArray(new Byte[0]);
-		byte[] primitiveReturnBytes = new byte[objectBytes.length];
-		int i = 0;
-		for (Byte b : objectBytes) {
-			primitiveReturnBytes[i++] = b;
-		}
-		return primitiveReturnBytes;
-	}
-
 	// Processes a received GET Request, handles case where page is not found. Any IO exceptions are passed up to the run() method.
-	private void processGet(RequestParser requestHeader) throws IOException {
-		String requestedPath = servingDirectory.getAbsolutePath() + requestHeader.getPathRequest();
+	private void processGet(Request request) throws IOException {
+		String requestedPath = servingDirectory.getAbsolutePath() + request.getPathRequest();
 		String finalPath = "";
 		boolean error404 = false;
 		StatusCode finalStatus = StatusCode.SUCCESS_200_OK;
 
 		// TODO - maybe rewrite this to avoid creating a file object, maybe a path object is enough?
-		File requestedFile = new File(servingDirectory, requestHeader.getPathRequest());
+		File requestedFile = new File(servingDirectory, request.getPathRequest());
 
 		// -------- TEST REDIRECT FUNCTIONALITY --------
-		if(requestHeader.getPathRequest().equals("/redirect")) {
+		if(request.getPathRequest().equals("/redirect")) {
 			sendRedirect("/redirectlanding");
 			return;
 		}
 
 		// -------- 403 FORBIDDEN FUNCTIONALITY --------
-		if(requestHeader.getPathRequest().startsWith("/forbidden")) {
+		if(request.getPathRequest().startsWith("/forbidden")) {
 			sendError(StatusCode.CLIENT_ERROR_403_FORBIDDEN);
 			return;
 		}
@@ -448,13 +181,16 @@ public class ClientThread implements Runnable {
 		}
 	}
 
-	private void processPost(RequestParser requestHeader) throws IOException {
+	private void processPost(Request request) throws IOException {
 		System.out.println("GOT POST REQUEST!");
-		System.out.printf("content-type={%s} boundary={%s} %n", requestHeader.getContentType(), requestHeader.getBoundary());
+		System.out.printf("content-type={%s} boundary={%s} %n", request.getContentType(), request.getBoundary());
 
-		if (requestHeader.getContentType().equals("multipart/form-data")) {
+		BodyParser bodyParser = new BodyParser();
+
+		if (request.getContentType().equals("multipart/form-data")) {
 			// HERE WE HAVE ACCESS TO ALL THE INDIVIDUAL MULTIPART OBJECTS! (including, name, filename, payload etc.)
-			ArrayList<MultipartObject> payloadData = getMultipartContent(requestHeader.getContentLength(), requestHeader.getBoundary());
+
+			ArrayList<MultipartObject> payloadData = bodyParser.getMultipartContent(inputStream, request.getContentLength(), request.getBoundary());
 
 			if (payloadData.size() >= 1) {
 				for (MultipartObject multipartObject : payloadData) {
@@ -481,8 +217,8 @@ public class ClientThread implements Runnable {
 			// 201 created if new
 			// 200 OK or 204 if replacing
 		}
-		else if (requestHeader.getContentType().equals("image/png")) {
-			byte[] payloadData = getBinaryContent(inputStream, requestHeader.getContentLength());
+		else if (request.getContentType().equals("image/png")) {
+			byte[] payloadData = bodyParser.getBinaryContent(inputStream, request.getContentLength());
 			Path writeDestination = Paths.get(servingDirectory + "/uploaded/FINALE.png");
 
 			System.out.println("writing a file...");
@@ -496,9 +232,12 @@ public class ClientThread implements Runnable {
 		}
 	}
 
-	private void processPut(RequestParser requestHeader) throws IOException {
+	private void processPut(Request request) throws IOException {
+
+		BodyParser bodyParser = new BodyParser();
+
 		boolean internalError = false;
-		Path destination = Paths.get(servingDirectory + requestHeader.getPathRequest());
+		Path destination = Paths.get(servingDirectory + request.getPathRequest());
 		File requestedFile = new File(String.valueOf(destination));
 
 		// prevent "../../" hacks
@@ -519,7 +258,7 @@ public class ClientThread implements Runnable {
 		}
 		// check if resource already exists
 		boolean exists = requestedFile.exists();
-		byte[] payloadData = getBinaryContent(inputStream, requestHeader.getContentLength());
+		byte[] payloadData = bodyParser.getBinaryContent(inputStream, request.getContentLength());
 
 		// write or overwrite depending exist state
 		System.out.println("Attempting write...");
@@ -535,7 +274,7 @@ public class ClientThread implements Runnable {
 
 		if (exists) {
 			// send 204 no content if file existed
-			sendHeaderResponse(requestHeader.getPathRequest(), StatusCode.SUCCESS_204_NO_CONTENT);
+			sendHeaderResponse(request.getPathRequest(), StatusCode.SUCCESS_204_NO_CONTENT);
 		}
 		else if (internalError) {
 			System.err.println("Internal Server Error");
@@ -543,7 +282,7 @@ public class ClientThread implements Runnable {
 		}
 		else {
 			// send 201 created if new
-			sendHeaderResponse(requestHeader.getPathRequest(), StatusCode.SUCCESS_201_CREATED);
+			sendHeaderResponse(request.getPathRequest(), StatusCode.SUCCESS_201_CREATED);
 		}
 		// 200 OK if replacing
 	}

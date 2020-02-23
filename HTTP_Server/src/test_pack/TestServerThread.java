@@ -6,6 +6,7 @@
 
 package test_pack;
 
+import HTTPServer.Request;
 import HTTPServer.RequestParser;
 import HTTPServer.ResponseBuilder;
 import HTTPServer.StatusCode;
@@ -35,45 +36,45 @@ public class TestServerThread implements Runnable {
 
 	@Override
 	public void run() {
-		InputStream input = null;
-		OutputStream output = null;
-		try {
-			input = socket.getInputStream();
-			output = socket.getOutputStream();
-		}
-		catch (IOException e) {
-			System.err.println("Write or read pipes broke on creation: " + e.getMessage());
-			System.exit(1);
-		}
-		RequestParser requestParser = null;
-		try {
-			requestParser = new RequestParser(getRequest(input));
-			System.out.println("Finished getting header");
-		}
-		catch (IOException e) {
-			System.err.println("Connection failed, reason: " + e.getMessage());
-			System.err.println("Closing connection: " + socket.getInetAddress());
-		}
-
-		if (requestParser.getMethod().equals("GET")) {
-			try {
-				processGet(requestParser, output);
-			}
-			catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
-
-
-		// On termination of thread
-		System.out.println("Finished serving content to: " + socket.getInetAddress().getHostAddress() + ":" + socket.getPort());
-		System.out.println("Closing connection");
-		try {
-			socket.close();
-		}
-		catch (IOException e) {
-			System.err.println("Error during socket termination: " + e.getMessage());
-		}
+//		InputStream input = null;
+//		OutputStream output = null;
+//		try {
+//			input = socket.getInputStream();
+//			output = socket.getOutputStream();
+//		}
+//		catch (IOException e) {
+//			System.err.println("Write or read pipes broke on creation: " + e.getMessage());
+//			System.exit(1);
+//		}
+//		RequestParser requestParser = null;
+//		try {
+//			requestParser = new RequestParser(getRequest(input));
+//			System.out.println("Finished getting header");
+//		}
+//		catch (IOException e) {
+//			System.err.println("Connection failed, reason: " + e.getMessage());
+//			System.err.println("Closing connection: " + socket.getInetAddress());
+//		}
+//
+//		if (S.getMethod().equals("GET")) {
+//			try {
+//				processGet(requestParser, output);
+//			}
+//			catch (IOException e) {
+//				e.printStackTrace();
+//			}
+//		}
+//
+//
+//		// On termination of thread
+//		System.out.println("Finished serving content to: " + socket.getInetAddress().getHostAddress() + ":" + socket.getPort());
+//		System.out.println("Closing connection");
+//		try {
+//			socket.close();
+//		}
+//		catch (IOException e) {
+//			System.err.println("Error during socket termination: " + e.getMessage());
+//		}
 
 
 	}
@@ -123,8 +124,8 @@ public class TestServerThread implements Runnable {
 		return primitiveReturnBytes;
 	}
 
-	private void processGet(RequestParser requestParser, OutputStream output) throws IOException {
-		String requestedPath = rootDirectory.getAbsolutePath() + requestParser.getPathRequest();
+	private void processGet(Request request, OutputStream output) throws IOException {
+		String requestedPath = rootDirectory.getAbsolutePath() + request.getPathRequest();
 		String finalPath = "";
 
 		if (Files.isDirectory(Paths.get(requestedPath))) {
