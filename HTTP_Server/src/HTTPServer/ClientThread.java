@@ -41,19 +41,19 @@ public class ClientThread implements Runnable {
 
 	@Override
 	public void run() {
+		// Failure boolean prevents request handling, kills thread prematurely.
 		boolean failure = false;
+
 		try {
 			outputStream = new BufferedOutputStream(clientSocket.getOutputStream());
 			inputStream = clientSocket.getInputStream();
 		}
 		catch (IOException e) {
-			// TODO - Add better error handling
 			System.err.println("Error when creating input or output stream: " + e.getMessage());
 			failure = true;
 		}
 
-		System.out.println("Using directory: " + servingDirectory.getAbsolutePath());
-
+		// This try-catch block tries to get the client request, sends 400 bad request if this failed
 		RequestParser requestHeader = null;
 		try {
 			requestHeader = new RequestParser(getRequest());
@@ -73,16 +73,24 @@ public class ClientThread implements Runnable {
 			failure = true;
 		}
 
+		// Processes the request method, methods will send appropriate response.
 		if (!failure) {
+			String method = requestHeader.getMethod();
 			try {
-				if (requestHeader.getMethod().equals("GET")) {
+				if (method.equals("GET")) {
 					processGet(requestHeader);
 				}
-				else if (requestHeader.getMethod().equals("PUT")) {
+				else if (method.equals("PUT")) {
 					processPut(requestHeader);
 				}
-				else if (requestHeader.getMethod().equals("POST")) {
+				else if (method.equals("POST")) {
 					processPost(requestHeader);
+				}
+				else if (method.equals("HEAD")) {
+					// processHead();
+				}
+				else if (method.equals("CONNECT") || method.equals("DELETE") || method.equals("OPTIONS") || method.equals("TRACE") || method.equals("PATCH")) {
+					sendError(StatusCode.SERVER_ERROR_501_NOT_IMPLEMENTED);
 				}
 				else {
 					sendError(StatusCode.CLIENT_ERROR_400_BAD_REQUEST);
@@ -91,12 +99,17 @@ public class ClientThread implements Runnable {
 			}
 			catch (IOException e) {
 				System.err.println("Error when processing request: " + e.getMessage());
-				e.printStackTrace();
-				// TODO - Send 500 internal server error
+				try {
+					sendError(StatusCode.SERVER_ERROR_500_INTERNAL_SERVER_ERROR);
+				}
+				catch (IOException ex) {
+					System.err.println("Failed to send error to client: " + e.getMessage());
+					ex.printStackTrace();
+				}
 			}
 		}
 
-
+		// Attempts to close the socket
 		try {
 			clientSocket.close();
 		}
