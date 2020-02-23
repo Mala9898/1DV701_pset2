@@ -89,9 +89,6 @@ public class ClientThread implements Runnable {
 				else if (method.equals("CONNECT") || method.equals("DELETE") || method.equals("OPTIONS") || method.equals("TRACE") || method.equals("PATCH")) {
 					sendError(StatusCode.SERVER_ERROR_501_NOT_IMPLEMENTED);
 				}
-				else if (method.equals("HEAD")) {
-					// processHead();
-				}
 				else {
 					sendError(StatusCode.CLIENT_ERROR_400_BAD_REQUEST);
 					System.out.println("Not supported");

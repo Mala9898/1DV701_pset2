@@ -18,16 +18,17 @@ public class HTTPServer {
 	private static ServerSocket serverSocket;
 	private static File servingDirectory;
 	private static int localPort;
-	private static final int UINT16_MAX = 65535;
+	private static final int UNIT16_MAX = 65535;
 
 	public static void main(String[] args) {
 		// Terminates program if not 2
 		checkArgLength(args);
-		// Parses port number
+		// Parses and sanity checks port number, terminates program if invalid
 		localPort = checkPort(args);
-		// TODO -- Check if this is actually ok when running via command line and compiling in linux
-		// Sets working directory
-		setDir("public");
+		// TODO -- Check if this works ok on a linux server
+		// Sets working directory, terminates program if non-existent directory or not a child of the present working directory
+		setDir(args[1]);
+		// Starts main server loop
 		startServer();
 	}
 
@@ -60,7 +61,7 @@ public class HTTPServer {
 	}
 
 	/**
-	 * Serve files from a directory
+	 * Serve files from a directory, does basic validation on the directory structure
 	 *
 	 * @param directory directory to serve files from
 	 */
@@ -69,6 +70,10 @@ public class HTTPServer {
 			servingDirectory = new File(directory);
 			if (!servingDirectory.isDirectory()) {
 				printAndQuit("serving directory has to be a directory");
+			}
+			if (!servingDirectory.getCanonicalPath().startsWith(System.getProperty("user.dir"))) {
+				printAndQuit("serving directory has to be a child of the present working directory, pwd is: " + System.getProperty("user.dir") + "\n"
+						+ "Requested directory was: " + servingDirectory.getCanonicalPath());
 			}
 		}
 		catch (Exception e) {
@@ -79,7 +84,7 @@ public class HTTPServer {
 
 	private static void checkArgLength(String[] args) {
 		if (args.length != 2) {
-			printAndQuit("Usage: [port-number] [root directory]");
+			printAndQuit("Requires two arguments");
 		}
 	}
 
@@ -102,9 +107,11 @@ public class HTTPServer {
 	 */
 	private static boolean validPort(String s) {
 		try {
-			if(inInclusiveRange(Integer.parseInt(s), 1, UINT16_MAX))
+			if (inInclusiveRange(Integer.parseInt(s), 1, UNIT16_MAX)) {
 				return true;
-		} catch (NumberFormatException e){
+			}
+		}
+		catch (NumberFormatException e) {
 			return false;
 		}
 		return false;
@@ -112,9 +119,10 @@ public class HTTPServer {
 
 	/**
 	 * helper math function to test if value is in [n1, n2]
+	 *
 	 * @param value Integer to test
-	 * @param n1 Lower inclusive limit
-	 * @param n2 Upper inclusive limit
+	 * @param n1    Lower inclusive limit
+	 * @param n2    Upper inclusive limit
 	 * @return true if within range, false if outside of range
 	 */
 	private static boolean inInclusiveRange(int value, int n1, int n2) {
@@ -123,10 +131,13 @@ public class HTTPServer {
 
 	/**
 	 * Prints a message and quits
+	 *
 	 * @param message Prints this message, quits afterward.
 	 */
 	private static void printAndQuit(String message) {
 		System.err.println(message);
+		System.err.println();
+		System.err.println("Usage: [port-number] [serving directory (in relation to present directory)]");
 		System.exit(-1);
 	}
 
