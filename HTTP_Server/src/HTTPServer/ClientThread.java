@@ -383,9 +383,8 @@ public class ClientThread implements Runnable {
 
 
 		if (!requestedFile.getCanonicalPath().startsWith(servingDirectory.getCanonicalPath())) {
-			// TODO - Send 403 Forbidden!
-			System.err.println("400 bad request, terminating");
-			System.exit(1);
+			sendResponse(StatusCode.CLIENT_ERROR_403_FORBIDDEN);
+			return;
 		}
 
 		// If file is readable and is a directory, start looking for HTML or HTM in that folder.
@@ -415,7 +414,6 @@ public class ClientThread implements Runnable {
 
 		// If previous if-block indicates that resource does not exist, set response to path 404.html and 404 header.
 		if (error404) {
-//			sendResponse(StatusCode.CLIENT_ERROR_404_NOT_FOUND);
 			sendContentResponse(error404Path, StatusCode.CLIENT_ERROR_404_NOT_FOUND);
 		}
 		else {
@@ -440,28 +438,17 @@ public class ClientThread implements Runnable {
 							out.write(multipartObject.getData());
 						}
 						catch (Exception e) {
-							System.out.println("Something went wrong: " + e.getMessage());
+							System.out.println("Couldn't save file: " + e.getMessage());
 							e.printStackTrace();
 						}
 					}
 				}
 			}
 			else {
-				System.err.println("\tNO MULTIPART DATA FOUND");
+				System.err.println("NO MULTIPART DATA FOUND");
+				sendResponse(StatusCode.CLIENT_ERROR_400_BAD_REQUEST);
+				return;
 			}
-//					Path writeDestination = Paths.get(servingDirectory + "/FINALE.png");
-//
-//					for(byte[] toWrite : payloadData) {
-//						System.out.println("writing a file...");
-//						Random random = new Random();
-//						try (OutputStream out = new FileOutputStream(servingDirectory.getAbsolutePath() + "/uploaded/FINALE"+ random.nextInt() +".png")) {
-//							out.write(toWrite);
-//						}
-//						catch (Exception e) {
-//							System.out.println("Something went wrong: " + e.getMessage());
-//							e.printStackTrace();
-//						}
-//					}
 
 			// TODO -- Send response
 			// 201 created if new
@@ -552,6 +539,14 @@ public class ClientThread implements Runnable {
 			case CLIENT_ERROR_403_FORBIDDEN:
 				body = responseBuilder.HTMLMessage("403 Forbidden");
 				header = responseBuilder.generateGenericHeader("text/html", StatusCode.CLIENT_ERROR_403_FORBIDDEN, body.length());
+				outputStream.write(header.getBytes());
+				outputStream.write(body.getBytes());
+				outputStream.flush();
+				break;
+
+			case CLIENT_ERROR_400_BAD_REQUEST:
+				body = responseBuilder.HTMLMessage("400 Bad Request");
+				header = responseBuilder.generateGenericHeader("text/html", StatusCode.CLIENT_ERROR_400_BAD_REQUEST, body.length());
 				outputStream.write(header.getBytes());
 				outputStream.write(body.getBytes());
 				outputStream.flush();
