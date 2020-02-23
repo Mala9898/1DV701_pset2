@@ -11,13 +11,14 @@ import java.util.Date;
 
 public class ResponseBuilder {
 
-    private ResponseBuilder() {
-        // Private constructor to hide the implicit public constructor
-    }
+    // this is now a an Object because TAs LOVE OBJECT ORIENTATION
+//    private ResponseBuilder() {
+//        // Private constructor to hide the implicit public constructor
+//    }
 
     public static final String CRLF = "\r\n";
 
-    public static String generatePOSTPUTHeader(String contentType, StatusCode statusCode, long length, String contentLocation) {
+    public String generatePOSTPUTHeader(String contentType, StatusCode statusCode, long length, String contentLocation) {
         StringBuilder header = new StringBuilder();
         header.append("HTTP/1.1 ").append(statusCode.getCode()).append(CRLF);
         header.append("Server: assignment 2 server" + CRLF);
@@ -39,7 +40,7 @@ public class ResponseBuilder {
         return header.toString();
     }
 
-    public static String generateGenericHeader(String contentType, StatusCode statusCode, long length) {
+    public String generateGenericHeader(String contentType, StatusCode statusCode, long length) {
         StringBuilder header = new StringBuilder();
         header.append("HTTP/1.1 ").append(statusCode.getCode()).append(CRLF);
         header.append("Server: assignment 2 server" + CRLF);
@@ -48,5 +49,35 @@ public class ResponseBuilder {
         header.append("Content-Length: ").append(length).append(CRLF);
         header.append(CRLF); // end of header is indicated by two CRLFs. We add the last one here.
         return header.toString();
+    }
+    public String relocateResponse(String location) {
+        StringBuilder message = new StringBuilder();
+        message.append("HTTP/1.1 ").append(StatusCode.REDIRECTION_302_FOUND.getCode()).append(CRLF);
+        message.append("Location: "+location + CRLF);
+        message.append("Server: assignment 2 server" + CRLF);
+        message.append("Date: ").append(new Date()).append(CRLF);
+        message.append("Content-Type: text/html").append(CRLF);
+        message.append(CRLF);
+
+        message.append(HTMLMessage("moved to <a href=\""+location+"\">"));
+
+        return message.toString();
+    }
+
+    /**
+     * Returns a simple HTML document with a message
+     * @param message
+     * @return
+     */
+    public String HTMLMessage(String message) {
+        return "<!DOCTYPE html>\n" +
+                "<html lang=\"en\">\n" +
+                "<head>\n" +
+                "    <title>"+message+"</title>\n" +
+                "</head>\n" +
+                "<body>\n" +
+                "<p>"+message+"</p>\n" +
+                "</body>\n" +
+                "</html>";
     }
 }
