@@ -186,6 +186,7 @@ public class ClientThread implements Runnable {
 		catch (IOException e) {
 			System.err.println("Error when processing request: " + e.getMessage());
 			e.printStackTrace();
+			// TODO - Send 500 internal server error
 		}
 		try {
 			clientSocket.close();
@@ -560,6 +561,10 @@ public class ClientThread implements Runnable {
 //							e.printStackTrace();
 //						}
 //					}
+
+			// TODO -- Send response
+			// 201 created if new
+			// 200 OK or 204 if replacing
 		}
 		else if (requestHeader.getContentType().equals("image/png")) {
 			byte[] payloadData = getBinaryContent(input, requestHeader.getContentLength());
@@ -578,8 +583,39 @@ public class ClientThread implements Runnable {
 
 	// TODO -- Make a put implementation here!
 	private void processPut(RequestParser requestHeader, OutputStream output) throws IOException {
+		Path destination = Paths.get(servingDirectory + requestHeader.getPathRequest());
+		File requestedFile = new File(String.valueOf(destination));
+
+		// prevent "../../" hacks
+		// https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/io/File.html#getCanonicalPath()
+		//  "removes redundant names such as "." and ".." from the pathname,
+		//   resolving symbolic links (on UNIX platforms), and converting drive letters to a standard case (on Microsoft Windows platforms)."
+
+		// TODO - Check if this actually still works, changed servingDirectory.getPath() to servingDirectory.getCanonicalPath().
+		// TODO -- Move this into a separate method, reused code!!
+		if (!requestedFile.getCanonicalPath().startsWith(servingDirectory.getCanonicalPath())) {
+			// TODO - Send 403 Forbidden!
+			System.err.println("400 bad request, terminating");
+			System.exit(1);
+		}
+		// TODO - Make this actually function as intended.
+		if (requestedFile.getCanonicalPath().startsWith(servingDirectory.getCanonicalPath() + "\\upload\\")) {
+			System.out.println("OK");
+		}
+
+		boolean exists;
+
+		if (requestedFile.exists()) {
+
+		}
 
 
+		// check if valid path, then if path is allowed
+		// check if resource already exists
+		// write or overwrite depending exist state
+
+		// send 201 created if new
+		// send 204 no content / 200 OK if replacing
 	}
 
 	/*
@@ -596,5 +632,10 @@ public class ClientThread implements Runnable {
 			// flush() tells stream to send the bytes into the TCP stream
 			output.flush();
 		}
+	}
+
+	// TODO - Check if if someone tries to get out of the intended pathway, return true if OK, false if trying to access something they shouldn't.
+	private boolean checkPathAccess() {
+		return false;
 	}
 }

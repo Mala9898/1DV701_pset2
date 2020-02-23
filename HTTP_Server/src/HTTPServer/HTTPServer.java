@@ -18,7 +18,7 @@ public class HTTPServer {
 	private ThreadPoolExecutor executorService;
 	private ServerSocket serverSocket;
 	private File servingDirectory;
-	private int port = 4950;
+	private int port = 80;
 
 
 	public HTTPServer() {
@@ -61,12 +61,12 @@ public class HTTPServer {
 
 		}
 		catch (IOException e) {
-			System.out.println("could not initialize socket: " + e.getMessage());
+			System.err.println("could not initialize socket: " + e.getMessage());
 			try {
 				serverSocket.close();
 			}
-			catch (IOException e2) {
-				System.out.println("failed to close socket: " + e2.getMessage());
+			catch (Exception e2) {
+				System.err.println("failed to close socket: " + e2.getMessage());
 			}
 			System.exit(1);
 		}

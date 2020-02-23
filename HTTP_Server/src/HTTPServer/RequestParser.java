@@ -151,8 +151,5 @@ public class RequestParser {
 				boundary = "--" + matcher.group("boundary"); // boundaries are always prefixed by additional double dashes
 			}
 		}
-
 	}
-
-
 }
