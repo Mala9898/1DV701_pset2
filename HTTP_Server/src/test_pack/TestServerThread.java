@@ -150,10 +150,11 @@ public class TestServerThread implements Runnable {
 		File f = new File(finalPath);
 
 		System.out.println(f.getAbsolutePath());
-		byte[] aLottaBytes = (ResponseBuilder.generateGenericHeader(URLConnection.guessContentTypeFromName(f.getName()), StatusCode.SUCCESS_200_OK, f.length())).getBytes();
-		output.write(aLottaBytes);
-		if (f.canRead()) {
-			output.write(Files.readAllBytes(Paths.get(f.getAbsolutePath())));
-		}
+		// temporarily commented
+//		byte[] aLottaBytes = (ResponseBuilder.generateGenericHeader(URLConnection.guessContentTypeFromName(f.getName()), StatusCode.SUCCESS_200_OK, f.length())).getBytes();
+//		output.write(aLottaBytes);
+//		if (f.canRead()) {
+//			output.write(Files.readAllBytes(Paths.get(f.getAbsolutePath())));
+//		}
 	}
 }

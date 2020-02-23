@@ -14,6 +14,7 @@ public enum StatusCode {
     SUCCESS_201_CREATED("201 Created"),
     SUCCESS_204_NO_CONTENT("204 No Content"),
     REDIRECTION_301_MOVED_PERMANENTLY("301 Moved Permanently"),
+    REDIRECTION_302_FOUND("302 Found"),
     REDIRECTION_304_NOT_MODIFIED("304 Not Modified"),
     REDIRECTION_307_TEMPORARY_REDIRECT("307 Temporary Redirect"),
     REDIRECTION_308_PERMANENT_REDIRECT("308 Permanent Redirect"),

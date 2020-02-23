@@ -369,6 +369,10 @@ public class ClientThread implements Runnable {
 		// TODO - maybe rewrite this to avoid creating a file object, maybe a path object is enough?
 		File requestedFile = new File(servingDirectory, requestHeader.getPathRequest());
 
+		if(requestHeader.getPathRequest().equals("/redirect")) {
+			sendRedirect("/redirectlanding");
+		}
+
 		// prevent "../../" hacks
 		// https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/io/File.html#getCanonicalPath()
 		//  "removes redundant names such as "." and ".." from the pathname,
@@ -408,6 +412,8 @@ public class ClientThread implements Runnable {
 
 		// If previous if-block indicates that resource does not exist, set response to path 404.html and 404 header.
 		if (error404) {
+			System.out.println("error 404");
+//			sendResponse(StatusCode.CLIENT_ERROR_404_NOT_FOUND);
 			sendContentResponse(error404Path, StatusCode.CLIENT_ERROR_404_NOT_FOUND);
 		}
 		else {
@@ -530,14 +536,36 @@ public class ClientThread implements Runnable {
 		// 200 OK if replacing
 	}
 
+	private void sendResponse(StatusCode statusCode) throws IOException {
+		ResponseBuilder responseBuilder = new ResponseBuilder();
+		switch (statusCode) {
+			case CLIENT_ERROR_404_NOT_FOUND:
+//				error404Path
+				String body = responseBuilder.HTMLMessage("404 not found");
+				String header = responseBuilder.generateGenericHeader("text/html", StatusCode.CLIENT_ERROR_404_NOT_FOUND, body.length());
+				outputStream.write(header.getBytes());
+				outputStream.write(body.getBytes());
+				outputStream.flush();
+				break;
+		}
+	}
+
+	private void sendRedirect(String location) throws IOException{
+		ResponseBuilder responseBuilder = new ResponseBuilder();
+		String toWrite = responseBuilder.relocateResponse(location);
+		outputStream.write(toWrite.getBytes());
+		outputStream.flush();
+	}
+
 	/*
 	If you debug and look at the requested paths, you will see that the 'path' variable mixes (/) and (\), this still works fine with java.io.File.
 	Even with a double // or double \\, it io.File filter this out and still works.
     */
 	private void sendContentResponse(String path, StatusCode finalStatus) throws IOException {
+		ResponseBuilder responseBuilder = new ResponseBuilder();
 		File f = new File(path);
 		System.out.println("Outputting to stream: " + f.getAbsolutePath());
-		byte[] headerBytes = (ResponseBuilder.generateGenericHeader(URLConnection.guessContentTypeFromName(f.getName()), finalStatus, f.length())).getBytes();
+		byte[] headerBytes = (responseBuilder.generateGenericHeader(URLConnection.guessContentTypeFromName(f.getName()), finalStatus, f.length())).getBytes();
 		if (f.canRead()) {
 			outputStream.write(headerBytes);
 			outputStream.write(Files.readAllBytes(Paths.get(f.getAbsolutePath())));
@@ -545,10 +573,10 @@ public class ClientThread implements Runnable {
 			outputStream.flush();
 		}
 	}
-//	private void sendResponse(StatusCode statusCode, out)
 
 	private void sendHeaderResponse(String contextFile, StatusCode finalStatus) throws IOException {
-		byte[] headerBytes = ResponseBuilder.generatePOSTPUTHeader("text/html", finalStatus, 0, contextFile).getBytes();
+		ResponseBuilder responseBuilder = new ResponseBuilder();
+		byte[] headerBytes = responseBuilder.generatePOSTPUTHeader("text/html", finalStatus, 0, contextFile).getBytes();
 		outputStream.write(headerBytes);
 		outputStream.flush();
 	}
