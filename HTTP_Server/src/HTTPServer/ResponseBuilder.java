@@ -17,13 +17,18 @@ public class ResponseBuilder {
 
     public static final String CRLF = "\r\n";
 
-    public static String generateHeader(String contentType, StatusCode statusCode, long length, String contentLocation) {
+    public static String generatePOSTPUTHeader(String contentType, StatusCode statusCode, long length, String contentLocation) {
         StringBuilder header = new StringBuilder();
         header.append("HTTP/1.1 ").append(statusCode.getCode()).append(CRLF);
         header.append("Server: assignment 2 server" + CRLF);
         header.append("Date: ").append(new Date()).append(CRLF);
-        if (statusCode == StatusCode.SUCCESS_201_CREATED || statusCode == StatusCode.SUCCESS_204_NO_CONTENT) {
-            header.append("Content-Location: ").append(contentLocation);
+        if (statusCode == StatusCode.SUCCESS_201_CREATED) {
+            // Indicates URL of newly created item
+            header.append("Content-Location: ").append(contentLocation).append(CRLF);
+        }
+        else if (statusCode == StatusCode.SUCCESS_204_NO_CONTENT) {
+            // Indicated target of redirection
+            header.append("Content-Location ").append(contentLocation).append(CRLF);
         }
         else {
             throw new IllegalArgumentException("StatusCode did not match header requiring a contentLocation field");
@@ -34,7 +39,7 @@ public class ResponseBuilder {
         return header.toString();
     }
 
-    public static String generateHeader(String contentType, StatusCode statusCode, long length) {
+    public static String generateGenericHeader(String contentType, StatusCode statusCode, long length) {
         StringBuilder header = new StringBuilder();
         header.append("HTTP/1.1 ").append(statusCode.getCode()).append(CRLF);
         header.append("Server: assignment 2 server" + CRLF);

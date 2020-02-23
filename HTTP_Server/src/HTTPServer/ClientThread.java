@@ -173,7 +173,7 @@ public class ClientThread implements Runnable {
 				processGet(requestHeader, outputStream);
 			}
 			else if (requestHeader.getMethod().equals("PUT")) {
-				processPut(requestHeader, outputStream);
+				processPut(requestHeader, outputStream, inputStream);
 			}
 			else if (requestHeader.getMethod().equals("POST")) {
 				processPost(requestHeader, outputStream, inputStream);
@@ -514,10 +514,10 @@ public class ClientThread implements Runnable {
 
 		// If previous if-block indicates that resource does not exist, set response to path 404.html and 404 header.
 		if (error404) {
-			sendResponse(error404Path, StatusCode.CLIENT_ERROR_404_NOT_FOUND, output);
+			sendContentResponse(error404Path, StatusCode.CLIENT_ERROR_404_NOT_FOUND, output);
 		}
 		else {
-			sendResponse(finalPath, finalStatus, output);
+			sendContentResponse(finalPath, finalStatus, output);
 		}
 	}
 
@@ -582,7 +582,8 @@ public class ClientThread implements Runnable {
 	}
 
 	// TODO -- Make a put implementation here!
-	private void processPut(RequestParser requestHeader, OutputStream output) throws IOException {
+	private void processPut(RequestParser requestHeader, OutputStream output, InputStream input) throws IOException {
+		boolean internalError = false;
 		Path destination = Paths.get(servingDirectory + requestHeader.getPathRequest());
 		File requestedFile = new File(String.valueOf(destination));
 
@@ -598,40 +599,61 @@ public class ClientThread implements Runnable {
 			System.err.println("400 bad request, terminating");
 			System.exit(1);
 		}
-		// TODO - Make this actually function as intended.
+		// TODO - Make this actually function as intended, make sure no huge subfolder structures are created.
 		if (requestedFile.getCanonicalPath().startsWith(servingDirectory.getCanonicalPath() + "\\upload\\")) {
 			System.out.println("OK");
 		}
+		// check if resource already exists
+		boolean exists = requestedFile.exists();
+		byte[] payloadData = getBinaryContent(input, requestHeader.getContentLength());
 
-		boolean exists;
-
-		if (requestedFile.exists()) {
-
+		// write or overwrite depending exist state
+		System.out.println("Attempting write...");
+		try (OutputStream out = new FileOutputStream(requestedFile)) {
+			out.write(payloadData);
+		}
+		catch (Exception e) {
+			System.out.println("Something went wrong: " + e.getMessage());
+			internalError = true;
+			e.printStackTrace();
 		}
 
 
-		// check if valid path, then if path is allowed
-		// check if resource already exists
-		// write or overwrite depending exist state
-
-		// send 201 created if new
-		// send 204 no content / 200 OK if replacing
+		if (exists) {
+			// send 204 no content if file existed
+			sendHeaderResponse(requestHeader.getPathRequest(), StatusCode.SUCCESS_204_NO_CONTENT, output);
+		}
+		else if (internalError) {
+			System.err.println("Internal Server Error");
+			// TODO - Send 500 internal server error
+		}
+		else {
+			// send 201 created if new
+			sendHeaderResponse(requestHeader.getPathRequest(), StatusCode.SUCCESS_201_CREATED, output);
+		}
+		// 200 OK if replacing
 	}
 
 	/*
 	If you debug and look at the requested paths, you will see that the 'path' variable mixes (/) and (\), this still works fine with java.io.File.
 	Even with a double // or double \\, it io.File filter this out and still works.
     */
-	private void sendResponse(String path, StatusCode finalStatus, OutputStream output) throws IOException {
+	private void sendContentResponse(String path, StatusCode finalStatus, OutputStream output) throws IOException {
 		File f = new File(path);
 		System.out.println("Outputting to stream: " + f.getAbsolutePath());
-		byte[] headerBytes = (ResponseBuilder.generateHeader(URLConnection.guessContentTypeFromName(f.getName()), finalStatus, f.length())).getBytes();
+		byte[] headerBytes = (ResponseBuilder.generateGenericHeader(URLConnection.guessContentTypeFromName(f.getName()), finalStatus, f.length())).getBytes();
 		if (f.canRead()) {
 			output.write(headerBytes);
 			output.write(Files.readAllBytes(Paths.get(f.getAbsolutePath())));
 			// flush() tells stream to send the bytes into the TCP stream
 			output.flush();
 		}
+	}
+
+	private void sendHeaderResponse(String contextFile, StatusCode finalStatus, OutputStream output) throws IOException {
+		byte[] headerBytes = ResponseBuilder.generatePOSTPUTHeader("text/html", finalStatus, 0, contextFile).getBytes();
+		output.write(headerBytes);
+		output.flush();
 	}
 
 	// TODO - Check if if someone tries to get out of the intended pathway, return true if OK, false if trying to access something they shouldn't.
