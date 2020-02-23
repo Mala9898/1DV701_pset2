@@ -579,14 +579,15 @@ public class ClientThread implements Runnable {
 	// TODO -- Make a put implementation here!
 	private void processPut(RequestParser requestHeader, OutputStream output) throws IOException {
 
+
 	}
 
 	/*
-	If you debug and look at the requested paths, you will see that the finalPath variable mixes (/) and (\), this still works fine with java.io.File.
+	If you debug and look at the requested paths, you will see that the 'path' variable mixes (/) and (\), this still works fine with java.io.File.
 	Even with a double // or double \\, it io.File filter this out and still works.
     */
-	private void sendResponse(String finalPath, StatusCode finalStatus, OutputStream output) throws IOException {
-		File f = new File(finalPath);
+	private void sendResponse(String path, StatusCode finalStatus, OutputStream output) throws IOException {
+		File f = new File(path);
 		System.out.println("Outputting to stream: " + f.getAbsolutePath());
 		byte[] headerBytes = (ResponseBuilder.generateHeader(URLConnection.guessContentTypeFromName(f.getName()), finalStatus, f.length())).getBytes();
 		if (f.canRead()) {
