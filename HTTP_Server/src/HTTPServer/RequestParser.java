@@ -1,5 +1,8 @@
 package HTTPServer;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -31,11 +34,50 @@ public class RequestParser {
 
 	}
 
-	public Request parse(byte[] req) throws IllegalArgumentException {
+	public Request parseRequest(InputStream inputStream) throws IOException {
+		ByteArrayOutputStream bytes = new ByteArrayOutputStream();
 
-		// Trim unnecessary variables as time goes on
-		requestBytes = req;
-		requestFull = new String(requestBytes);
+		byte read;
+		boolean run = true;
+
+		boolean first = true;
+		boolean second = false;
+
+		while (run) {
+			// Read bytes, valid header is ALWAYS in ASCII.
+			if ((read = (byte) inputStream.read()) != -1) {
+				System.out.print((char) read);
+				// Add byte to list.
+				bytes.write(read);
+				// On CR or LF
+				if (read == '\r' || read == '\n') {
+					if (first) {
+						// On CR
+						first = false;
+					}
+					// SonarLint is wrong, second does turn true on CRLFx2!!
+					// On CRLFx2, terminate while loop.
+					else if (second) {
+						run = false;
+					}
+					else {
+						// On LF
+						second = true;
+						first = true;
+					}
+				}
+				// On any character other than CR or LF
+				else {
+					second = false;
+					first = true;
+				}
+			}
+			else {
+				run = false;
+			}
+		}
+
+		requestFull = new String(bytes.toByteArray());
 
 		// Split on CRLF
 		requestLines = requestFull.split("[\\r\\n]+");
@@ -43,12 +85,12 @@ public class RequestParser {
 		Request toReturn = new Request();
 
 		String[] processing;
-		boolean first = true;
+		boolean first2 = true;
 		for (String line : requestLines) {
 			processing = line.split(":");
 			// On first line, ex GET / HTTP/1.1
 			// HTTP method is case sensitive!
-			if (first) {
+			if (first2) {
 				processing = line.split("\\s+");
 				if (processing.length != 3) {
 					throw new IllegalArgumentException();
@@ -57,7 +99,7 @@ public class RequestParser {
 					toReturn.setMethod(processing[0]);
 					toReturn.setPathRequest(processing[1]);
 					toReturn.setHttpVersion(processing[2]);
-					first = false;
+					first2 = false;
 				}
 			}
 			else {
@@ -97,6 +139,7 @@ public class RequestParser {
 			}
 		}
 		return toReturn;
+
 	}
 
 }

@@ -52,8 +52,7 @@ public class ClientThread implements Runnable {
 		Request request = null;
 
 		try {
-			byte[] requestHeader = getRequest();
-			request = requestParser.parse(requestHeader);
+			request = requestParser.parseRequest(inputStream);
 		}
 		catch (IOException e) {
 			try {
@@ -115,51 +114,7 @@ public class ClientThread implements Runnable {
 	}
 
 
-	// Returns a request header
-	private byte[] getRequest() throws IOException {
-		ByteArrayOutputStream bytes = new ByteArrayOutputStream();
 
-		byte read;
-		boolean run = true;
-
-		boolean first = true;
-		boolean second = false;
-
-		while (run) {
-			// Read bytes, valid header is ALWAYS in ASCII.
-			if ((read = (byte) inputStream.read()) != -1) {
-				System.out.print((char) read);
-				// Add byte to list.
-				bytes.write(read);
-				// On CR or LF
-				if (read == '\r' || read == '\n') {
-					if (first) {
-						// On CR
-						first = false;
-					}
-					// SonarLint is wrong, second does turn true on CRLFx2!!
-					// On CRLFx2, terminate while loop.
-					else if (second) {
-						run = false;
-					}
-					else {
-						// On LF
-						second = true;
-						first = true;
-					}
-				}
-				// On any character other than CR or LF
-				else {
-					second = false;
-					first = true;
-				}
-			}
-			else {
-				run = false;
-			}
-		}
-		return bytes.toByteArray();
-	}
 
 
 	// Processes a received GET Request, handles case where page is not found. Any IO exceptions are passed up to the run() method.
