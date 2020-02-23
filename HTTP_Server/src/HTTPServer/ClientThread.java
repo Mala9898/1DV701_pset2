@@ -239,51 +239,58 @@ public class ClientThread implements Runnable {
 		Path destination = Paths.get(servingDirectory + request.getPathRequest());
 		File requestedFile = new File(String.valueOf(destination));
 
-		// prevent "../../" hacks
-		// https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/io/File.html#getCanonicalPath()
-		//  "removes redundant names such as "." and ".." from the pathname,
-		//   resolving symbolic links (on UNIX platforms), and converting drive letters to a standard case (on Microsoft Windows platforms)."
+		// check if resource already exists
+		boolean exists = requestedFile.exists();
+		byte[] payloadData = bodyParser.getBinaryContent(inputStream, request.getContentLength());
 
-		// TODO - Check if this actually still works, changed servingDirectory.getPath() to servingDirectory.getCanonicalPath().
 		// TODO -- Move this into a separate method, reused code!!
 		if (!requestedFile.getCanonicalPath().startsWith(servingDirectory.getCanonicalPath())) {
 			// TODO - Send 403 Forbidden!
 			System.err.println("400 bad request, terminating");
 			System.exit(1);
 		}
-		// TODO - Make this actually function as intended, make sure no huge subfolder structures are created.
-		if (requestedFile.getCanonicalPath().startsWith(servingDirectory.getCanonicalPath() + "\\upload\\")) {
-			System.out.println("OK");
-		}
-		// check if resource already exists
-		boolean exists = requestedFile.exists();
-		byte[] payloadData = bodyParser.getBinaryContent(inputStream, request.getContentLength());
 
-		// write or overwrite depending exist state
-		System.out.println("Attempting write...");
-		try (OutputStream out = new FileOutputStream(requestedFile)) {
-			out.write(payloadData);
+		if (request.getContentType().equals("multipart/form-data")) {
+
 		}
-		catch (Exception e) {
-			System.out.println("Something went wrong: " + e.getMessage());
-			internalError = true;
-			e.printStackTrace();
-		}
+		else if (request.getContentType().equals("image/png")) {
+
+			// TODO - Make this actually function as intended, make sure no huge subfolder structures are created.
+			if (requestedFile.getCanonicalPath().startsWith(servingDirectory.getCanonicalPath() + "\\upload\\")) {
+				System.out.println("OK");
+			}
+			
+			// write or overwrite depending exist state
+			System.out.println("Attempting write...");
+			try (OutputStream out = new FileOutputStream(requestedFile)) {
+				out.write(payloadData);
+			}
+			catch (Exception e) {
+				System.out.println("Something went wrong: " + e.getMessage());
+				internalError = true;
+				e.printStackTrace();
+			}
 
 
-		if (exists) {
-			// send 204 no content if file existed
-			sendHeaderResponse(request.getPathRequest(), StatusCode.SUCCESS_204_NO_CONTENT);
-		}
-		else if (internalError) {
-			System.err.println("Internal Server Error");
-			// TODO - Send 500 internal server error
+			if (exists) {
+				// send 204 no content if file existed
+				sendHeaderResponse(request.getPathRequest(), StatusCode.SUCCESS_204_NO_CONTENT);
+			}
+			else if (internalError) {
+				System.err.println("Internal Server Error");
+				// TODO - Send 500 internal server error
+			}
+			else {
+				// send 201 created if new
+				sendHeaderResponse(request.getPathRequest(), StatusCode.SUCCESS_201_CREATED);
+			}
+			// 200 OK if replacing
 		}
 		else {
-			// send 201 created if new
-			sendHeaderResponse(request.getPathRequest(), StatusCode.SUCCESS_201_CREATED);
+			// TODO send some error
 		}
-		// 200 OK if replacing
+
+
 	}
 
 	private void sendError(StatusCode statusCode) throws IOException {
