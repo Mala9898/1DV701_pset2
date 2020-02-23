@@ -30,6 +30,9 @@ public class ClientThread implements Runnable {
 	//    private final int REQUEST_BUFFER_LEN = 4096;
 	private final int REQUEST_BUFFER_LEN = 90000;
 
+	OutputStream outputStream = null;
+	InputStream inputStream = null;
+
 	public ClientThread(Socket clientSocket, File directory) {
 		this.clientSocket = clientSocket;
 		this.servingDirectory = directory;
@@ -38,9 +41,7 @@ public class ClientThread implements Runnable {
 
 	@Override
 	public void run() {
-		// create two output streams, one "raw" for sending binary data, and a Writer for sending ASCII (header) text
-		OutputStream outputStream = null;
-		InputStream inputStream = null;
+
 		try {
 			outputStream = new BufferedOutputStream(clientSocket.getOutputStream());
 			inputStream = clientSocket.getInputStream();
@@ -55,7 +56,7 @@ public class ClientThread implements Runnable {
 
 		RequestParser requestHeader = null;
 		try {
-			requestHeader = new RequestParser(getRequest(inputStream));
+			requestHeader = new RequestParser(getRequest());
 		}
 		catch (IOException e) {
 			System.err.println("Request parse failed, bad request received: " + e.getMessage());
@@ -63,13 +64,13 @@ public class ClientThread implements Runnable {
 		}
 		try {
 			if (requestHeader.getMethod().equals("GET")) {
-				processGet(requestHeader, outputStream);
+				processGet(requestHeader);
 			}
 			else if (requestHeader.getMethod().equals("PUT")) {
-				processPut(requestHeader, outputStream, inputStream);
+				processPut(requestHeader);
 			}
 			else if (requestHeader.getMethod().equals("POST")) {
-				processPost(requestHeader, outputStream, inputStream);
+				processPost(requestHeader);
 			}
 			else {
 				// TODO - Send 400 Bad Request
@@ -91,7 +92,7 @@ public class ClientThread implements Runnable {
 	}
 
 	// TODO - Support if the content sent came in multiple chunks of TCP data, we do NOT have to support Transfer-Encoding: Chunked!! We can refuse this kind of request.
-	private ArrayList<MultipartObject> getMultipartContent(InputStream inputStream, int contentLength, String _boundary) throws IOException {
+	private ArrayList<MultipartObject> getMultipartContent(int contentLength, String _boundary) throws IOException {
 
 		BufferedInputStream reader = new BufferedInputStream(inputStream);
 
@@ -297,7 +298,7 @@ public class ClientThread implements Runnable {
 	}
 
 	// Returns a request header
-	private byte[] getRequest(InputStream in) throws IOException {
+	private byte[] getRequest() throws IOException {
 		ArrayList<Byte> bytes = new ArrayList<>();
 		byte read;
 		boolean run = true;
@@ -307,7 +308,7 @@ public class ClientThread implements Runnable {
 
 		while (run) {
 			// Read bytes, valid header is ALWAYS in ASCII.
-			if ((read = (byte) in.read()) != -1) {
+			if ((read = (byte) inputStream.read()) != -1) {
 				System.out.print((char) read);
 				// Add byte to list.
 				bytes.add(read);
@@ -359,7 +360,7 @@ public class ClientThread implements Runnable {
 	}
 
 	// Processes a received GET Request, handles case where page is not found. Any IO exceptions are passed up to the run() method.
-	private void processGet(RequestParser requestHeader, OutputStream output) throws IOException {
+	private void processGet(RequestParser requestHeader) throws IOException {
 		String requestedPath = servingDirectory.getAbsolutePath() + requestHeader.getPathRequest();
 		String finalPath = "";
 		boolean error404 = false;
@@ -407,14 +408,14 @@ public class ClientThread implements Runnable {
 
 		// If previous if-block indicates that resource does not exist, set response to path 404.html and 404 header.
 		if (error404) {
-			sendContentResponse(error404Path, StatusCode.CLIENT_ERROR_404_NOT_FOUND, output);
+			sendContentResponse(error404Path, StatusCode.CLIENT_ERROR_404_NOT_FOUND);
 		}
 		else {
-			sendContentResponse(finalPath, finalStatus, output);
+			sendContentResponse(finalPath, finalStatus);
 		}
 	}
 
-	private void processPost(RequestParser requestHeader, OutputStream output, InputStream input) throws IOException {
+	private void processPost(RequestParser requestHeader) throws IOException {
 		// TODO: implement x-www-form-urlencoded, multi-part form, binary data.
 		// TODO: Detect content type that client is trying to send, this just shoves data into an image file.
 		// TODO limit this buffer
@@ -423,7 +424,7 @@ public class ClientThread implements Runnable {
 
 		if (requestHeader.getContentType().equals("multipart/form-data")) {
 			// HERE WE HAVE ACCESS TO ALL THE INDIVIDUAL MULTIPART OBJECTS! (including, name, filename, payload etc.)
-			ArrayList<MultipartObject> payloadData = getMultipartContent(input, requestHeader.getContentLength(), requestHeader.getBoundary());
+			ArrayList<MultipartObject> payloadData = getMultipartContent(requestHeader.getContentLength(), requestHeader.getBoundary());
 
 			// print the received filenames
 			if (payloadData.size() >= 1) {
@@ -462,7 +463,7 @@ public class ClientThread implements Runnable {
 			// 200 OK or 204 if replacing
 		}
 		else if (requestHeader.getContentType().equals("image/png")) {
-			byte[] payloadData = getBinaryContent(input, requestHeader.getContentLength());
+			byte[] payloadData = getBinaryContent(inputStream, requestHeader.getContentLength());
 			Path writeDestination = Paths.get(servingDirectory + "/uploaded/FINALE.png");
 
 			System.out.println("writing a file...");
@@ -477,7 +478,7 @@ public class ClientThread implements Runnable {
 	}
 
 	// TODO -- Make a put implementation here!
-	private void processPut(RequestParser requestHeader, OutputStream output, InputStream input) throws IOException {
+	private void processPut(RequestParser requestHeader) throws IOException {
 		boolean internalError = false;
 		Path destination = Paths.get(servingDirectory + requestHeader.getPathRequest());
 		File requestedFile = new File(String.valueOf(destination));
@@ -500,7 +501,7 @@ public class ClientThread implements Runnable {
 		}
 		// check if resource already exists
 		boolean exists = requestedFile.exists();
-		byte[] payloadData = getBinaryContent(input, requestHeader.getContentLength());
+		byte[] payloadData = getBinaryContent(inputStream, requestHeader.getContentLength());
 
 		// write or overwrite depending exist state
 		System.out.println("Attempting write...");
@@ -516,7 +517,7 @@ public class ClientThread implements Runnable {
 
 		if (exists) {
 			// send 204 no content if file existed
-			sendHeaderResponse(requestHeader.getPathRequest(), StatusCode.SUCCESS_204_NO_CONTENT, output);
+			sendHeaderResponse(requestHeader.getPathRequest(), StatusCode.SUCCESS_204_NO_CONTENT);
 		}
 		else if (internalError) {
 			System.err.println("Internal Server Error");
@@ -524,7 +525,7 @@ public class ClientThread implements Runnable {
 		}
 		else {
 			// send 201 created if new
-			sendHeaderResponse(requestHeader.getPathRequest(), StatusCode.SUCCESS_201_CREATED, output);
+			sendHeaderResponse(requestHeader.getPathRequest(), StatusCode.SUCCESS_201_CREATED);
 		}
 		// 200 OK if replacing
 	}
@@ -533,22 +534,23 @@ public class ClientThread implements Runnable {
 	If you debug and look at the requested paths, you will see that the 'path' variable mixes (/) and (\), this still works fine with java.io.File.
 	Even with a double // or double \\, it io.File filter this out and still works.
     */
-	private void sendContentResponse(String path, StatusCode finalStatus, OutputStream output) throws IOException {
+	private void sendContentResponse(String path, StatusCode finalStatus) throws IOException {
 		File f = new File(path);
 		System.out.println("Outputting to stream: " + f.getAbsolutePath());
 		byte[] headerBytes = (ResponseBuilder.generateGenericHeader(URLConnection.guessContentTypeFromName(f.getName()), finalStatus, f.length())).getBytes();
 		if (f.canRead()) {
-			output.write(headerBytes);
-			output.write(Files.readAllBytes(Paths.get(f.getAbsolutePath())));
+			outputStream.write(headerBytes);
+			outputStream.write(Files.readAllBytes(Paths.get(f.getAbsolutePath())));
 			// flush() tells stream to send the bytes into the TCP stream
-			output.flush();
+			outputStream.flush();
 		}
 	}
+//	private void sendResponse(StatusCode statusCode, out)
 
-	private void sendHeaderResponse(String contextFile, StatusCode finalStatus, OutputStream output) throws IOException {
+	private void sendHeaderResponse(String contextFile, StatusCode finalStatus) throws IOException {
 		byte[] headerBytes = ResponseBuilder.generatePOSTPUTHeader("text/html", finalStatus, 0, contextFile).getBytes();
-		output.write(headerBytes);
-		output.flush();
+		outputStream.write(headerBytes);
+		outputStream.flush();
 	}
 
 	// TODO - Check if if someone tries to get out of the intended pathway, return true if OK, false if trying to access something they shouldn't.
