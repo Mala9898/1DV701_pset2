@@ -1,10 +1,13 @@
-package HTTPServer;
+package HTTPServer.Abstractions;
 
 /**
- * @author: Stanislaw J. Malec  (sm223ak@student.lnu.se)
- * @author: Love Samuelsson     (ls223qx@student.lnu.se)
+ * @author Stanislaw J. Malec  (sm223ak@student.lnu.se)
+ * @author Love Samuelsson     (ls223qx@student.lnu.se)
  * 2020-02-23
+ * <p>
+ * Getter and setter class that provides encapsulation for a typical HTTP header request.
  */
+
 public class Request {
 
     private String userAgent;
@@ -16,6 +19,10 @@ public class Request {
     private String pathRequest;
     private String httpVersion;
     private int contentLength;
+
+    public Request() {
+        // Empty constructor, no variable initialization required.
+    }
 
     public String getUserAgent() {
         return userAgent;

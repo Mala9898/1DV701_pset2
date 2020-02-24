@@ -4,12 +4,11 @@ import HTTPServer.Multipart.MultipartObject;
 
 import java.io.*;
 import java.nio.ByteBuffer;
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 
 /**
- * @author: Stanislaw J. Malec  (sm223ak@student.lnu.se)
- * @author: Love Samuelsson     (ls223qx@student.lnu.se)
+ * @author Stanislaw J. Malec  (sm223ak@student.lnu.se)
+ * @author Love Samuelsson     (ls223qx@student.lnu.se)
  * 2020-02-19
  */
 public class StreamTester {

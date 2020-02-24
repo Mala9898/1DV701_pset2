@@ -1,5 +1,6 @@
 package HTTPServer;
 
+import HTTPServer.Abstractions.*;
 import HTTPServer.Multipart.MultipartObject;
 
 import java.io.*;
@@ -8,12 +9,14 @@ import java.net.URLConnection;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
+import java.util.List;
 
 /**
- * @author: Stanislaw J. Malec  (sm223ak@student.lnu.se)
- * @author: Love Samuelsson     (ls223qx@student.lnu.se)
+ * @author Stanislaw J. Malec  (sm223ak@student.lnu.se)
+ * @author Love Samuelsson     (ls223qx@student.lnu.se)
  * 2020-02-15
+ * <p>
+ * Client thread is a class that intends to handle a single HTTP transaction, from start to finish.
  */
 
 
@@ -25,11 +28,11 @@ public class ClientThread implements Runnable {
 	private String error404Path;
 	private Socket clientSocket;
 	private File servingDirectory;
-	private final int REQUEST_BUFFER_LEN = 90000;
 
 	OutputStream outputStream = null;
 	InputStream inputStream = null;
 
+	// Constructor only needs serving directory and the socket where the HTTP connection is coming from.
 	public ClientThread(Socket clientSocket, File directory) {
 		this.clientSocket = clientSocket;
 		this.servingDirectory = directory;
@@ -58,7 +61,8 @@ public class ClientThread implements Runnable {
 		try {
 			request = requestParser.parseRequest(inputStream);
 		}
-		catch (IOException e) {
+		// RequestParser throws IllegalArgument when the received request is malformed.
+		catch (IllegalArgumentException e) {
 			try {
 				System.err.println("Bad request received");
 				sendError(StatusCode.CLIENT_ERROR_400_BAD_REQUEST);
@@ -67,45 +71,16 @@ public class ClientThread implements Runnable {
 				System.err.println("Error sending failed: " + e.getMessage());
 			}
 			failure = true;
-		} catch (Exception e) {
-			System.err.println("IOException: "+e.getMessage());
+		}
+		// RequestParser throws generic IO Error when it failed to receive.
+		catch (Exception e) {
+			System.err.println("Generic IOException: " + e.getMessage());
 		}
 
-		// Processes the request method, methods will send appropriate response.
-		if (!failure) {
-			try {
-				String method = request.getMethod();
-				if (method.equals("GET")) {
-					processGet(request);
-				}
-				else if (method.equals("PUT")) {
-					processPut(request);
-				}
-				else if (method.equals("POST")) {
-					processPost(request);
-				}
-				else if (method.equals("HEAD")) {
-					// TODO
-//					 processHead();
-				}
-				else if (method.equals("CONNECT") || method.equals("DELETE") || method.equals("OPTIONS") || method.equals("TRACE") || method.equals("PATCH")) {
-					sendError(StatusCode.SERVER_ERROR_501_NOT_IMPLEMENTED);
-				}
-				else {
-					sendError(StatusCode.CLIENT_ERROR_400_BAD_REQUEST);
-					System.out.println("Not supported");
-				}
-			}
-			catch (IOException e) {
-				System.err.println("Error when processing request: " + e.getMessage());
-				try {
-					sendError(StatusCode.SERVER_ERROR_500_INTERNAL_SERVER_ERROR);
-				}
-				catch (IOException ex) {
-					System.err.println("Failed to send error to client: " + e.getMessage());
-					ex.printStackTrace();
-				}
-			}
+		if (!failure && request != null) {
+			// Processes the request method, methods will send appropriate response.
+			// Exceptions relating to errors during response creation are handled in handleRequest()
+			handleRequest(request);
 		}
 
 		// Attempts to close the socket
@@ -118,7 +93,57 @@ public class ClientThread implements Runnable {
 		System.out.println("Thread terminating");
 	}
 
-	// Processes a received GET Request, handles case where page is not found. Any IO exceptions are passed up to the run() method.
+	private void handleRequest(Request request) {
+		String method = request.getMethod();
+		try {
+			switch (method) {
+				case "GET":
+					processGet(request);
+					break;
+
+				case "PUT":
+					processPut(request);
+					break;
+
+				case "POST":
+					processPost(request);
+					break;
+
+				case "HEAD":
+					// TODO
+//					 processHead();
+					break;
+
+				case "CONNECT":
+				case "DELETE":
+				case "OPTIONS":
+				case "TRACE":
+				case "PATCH":
+					// Unimplemented requests for these methods sends a 501 to client
+					sendError(StatusCode.SERVER_ERROR_501_NOT_IMPLEMENTED);
+					break;
+
+				default:
+					// Method requests not part of HTTP/1.1 will send a 400 bad request to client
+					sendError(StatusCode.CLIENT_ERROR_400_BAD_REQUEST);
+					System.out.println("Not supported");
+					break;
+			}
+		}
+		// Any general unhandled exception that arises when attempting to process a request will send a 500 internal error to the client.
+		catch (IOException e) {
+			System.err.println("Error when processing request: " + e.getMessage());
+			try {
+				sendError(StatusCode.SERVER_ERROR_500_INTERNAL_SERVER_ERROR);
+			}
+			catch (IOException ex) {
+				System.err.println("Failed to send error to client: " + e.getMessage());
+				ex.printStackTrace();
+			}
+		}
+	}
+
+	// Processes a received GET Request, handles case where page is not found. Any IO exceptions are passed up to caller.
 	private void processGet(Request request) throws IOException {
 		String requestedPath = servingDirectory.getAbsolutePath() + request.getPathRequest();
 		String finalPath = "";
@@ -129,13 +154,13 @@ public class ClientThread implements Runnable {
 		File requestedFile = new File(servingDirectory, request.getPathRequest());
 
 		// -------- TEST REDIRECT FUNCTIONALITY --------
-		if(request.getPathRequest().equals("/redirect")) {
+		if (request.getPathRequest().equals("/redirect")) {
 			sendRedirect("/redirectlanding");
 			return;
 		}
 
 		// -------- 403 FORBIDDEN FUNCTIONALITY --------
-		if(request.getPathRequest().startsWith("/forbidden")) {
+		if (request.getPathRequest().startsWith("/forbidden")) {
 			sendError(StatusCode.CLIENT_ERROR_403_FORBIDDEN);
 			return;
 		}
@@ -179,6 +204,7 @@ public class ClientThread implements Runnable {
 		}
 	}
 
+	// Processes a received POST Request. Exceptions are thrown to caller
 	private void processPost(Request request) throws IOException {
 		System.out.println("GOT POST REQUEST!");
 		System.out.printf("content-type={%s} boundary={%s} %n", request.getContentType(), request.getBoundary());
@@ -188,12 +214,12 @@ public class ClientThread implements Runnable {
 		if (request.getContentType().equals("multipart/form-data")) {
 			// HERE WE HAVE ACCESS TO ALL THE INDIVIDUAL MULTIPART OBJECTS! (including, name, filename, payload etc.)
 
-			ArrayList<MultipartObject> payloadData = bodyParser.getMultipartContent(inputStream, request.getContentLength(), request.getBoundary());
+			List<MultipartObject> payloadData = bodyParser.getMultipartContent(inputStream, request.getContentLength(), request.getBoundary());
 
 			if (payloadData.size() >= 1) {
 				for (MultipartObject multipartObject : payloadData) {
 					// only save png images
-					if(multipartObject.getDispositionContentType().equals("image/png")){
+					if (multipartObject.getDispositionContentType().equals("image/png")) {
 						System.out.printf("saving {%s} %n", multipartObject.getDispositionFilename());
 						try (OutputStream out = new FileOutputStream(servingDirectory.getAbsolutePath() + "/uploaded/" + multipartObject.getDispositionFilename())) {
 							out.write(multipartObject.getData());
@@ -230,6 +256,7 @@ public class ClientThread implements Runnable {
 		}
 	}
 
+	// Processes a received PUT request. Exceptions are thrown to caller.
 	private void processPut(Request request) throws IOException {
 
 		BodyParser bodyParser = new BodyParser();
@@ -258,7 +285,7 @@ public class ClientThread implements Runnable {
 			if (requestedFile.getCanonicalPath().startsWith(servingDirectory.getCanonicalPath() + "\\upload\\")) {
 				System.out.println("OK");
 			}
-			
+
 			// write or overwrite depending exist state
 			System.out.println("Attempting write...");
 			try (OutputStream out = new FileOutputStream(requestedFile)) {
@@ -289,10 +316,14 @@ public class ClientThread implements Runnable {
 		}
 	}
 
+	private void processHead(Request request) {
+		// TODO - Implement head
+	}
+
 	private void sendError(StatusCode statusCode) throws IOException {
 		ResponseBuilder responseBuilder = new ResponseBuilder();
-		String body = "";
-		String header = "";
+		String body;
+		String header;
 		switch (statusCode) {
 			case CLIENT_ERROR_404_NOT_FOUND:
 //				error404Path

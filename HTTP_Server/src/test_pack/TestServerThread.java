@@ -1,26 +1,21 @@
-/**
- * @author: Love Samuelsson     (ls223qx@student.lnu.se)
- * @author: Stanislaw J. Malec  (sm223ak@student.lnu.se)
- * 2020-02-15
- */
-
 package test_pack;
 
-import HTTPServer.Request;
-import HTTPServer.RequestParser;
-import HTTPServer.ResponseBuilder;
-import HTTPServer.StatusCode;
+import HTTPServer.Abstractions.Request;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
-import java.net.URLConnection;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 
+/**
+ * @author Love Samuelsson     (ls223qx@student.lnu.se)
+ * @author Stanislaw J. Malec  (sm223ak@student.lnu.se)
+ * 2020-02-15
+ */
 public class TestServerThread implements Runnable {
 	private Socket socket;
 	private static final String INDEX_HTML = "/index.html";

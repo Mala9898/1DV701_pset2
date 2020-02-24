@@ -1,10 +1,10 @@
-package HTTPServer;
+package HTTPServer.Abstractions;
 
 import java.util.Date;
 
 /**
- * @author: Stanislaw J. Malec  (sm223ak@student.lnu.se)
- * @author: Love Samuelsson     (ls223qx@student.lnu.se)
+ * @author Stanislaw J. Malec  (sm223ak@student.lnu.se)
+ * @author Love Samuelsson     (ls223qx@student.lnu.se)
  * 2020-02-15
  */
 
@@ -15,6 +15,7 @@ public class ResponseBuilder {
 //    private ResponseBuilder() {
 //        // Private constructor to hide the implicit public constructor
 //    }
+    // TODO - Evaluate if this *really* needs to be an object.
 
     public static final String CRLF = "\r\n";
 
@@ -50,24 +51,26 @@ public class ResponseBuilder {
         header.append(CRLF); // end of header is indicated by two CRLFs. We add the last one here.
         return header.toString();
     }
+
     public String relocateResponse(String location) {
         StringBuilder message = new StringBuilder();
         message.append("HTTP/1.1 ").append(StatusCode.REDIRECTION_302_FOUND.getCode()).append(CRLF);
-        message.append("Location: "+location + CRLF);
+        message.append("Location: " + location + CRLF);
         message.append("Server: assignment 2 server" + CRLF);
         message.append("Date: ").append(new Date()).append(CRLF);
         message.append("Content-Type: text/html").append(CRLF);
         message.append(CRLF);
 
-        message.append(HTMLMessage("moved to <a href=\""+location+"\">"));
+        message.append(HTMLMessage("moved to <a href=\"" + location + "\">"));
 
         return message.toString();
     }
 
     /**
      * Returns a simple HTML document with a message
-     * @param message
-     * @return
+     *
+     * @param message The massage to put into the basic HTML document
+     * @return a basic HTML document
      */
     public String HTMLMessage(String message) {
         return "<!DOCTYPE html>\n" +

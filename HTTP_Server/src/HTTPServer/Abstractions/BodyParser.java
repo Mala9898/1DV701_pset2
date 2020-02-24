@@ -1,4 +1,4 @@
-package HTTPServer;
+package HTTPServer.Abstractions;
 
 import HTTPServer.Multipart.MultipartObject;
 
@@ -8,10 +8,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.List;
 
 /**
- * @author: Stanislaw J. Malec  (sm223ak@student.lnu.se)
- * @author: Love Samuelsson     (ls223qx@student.lnu.se)
+ * @author Stanislaw J. Malec  (sm223ak@student.lnu.se)
+ * @author Love Samuelsson     (ls223qx@student.lnu.se)
  * 2020-02-23
  */
 public class BodyParser {
@@ -27,7 +28,7 @@ public class BodyParser {
         ByteArrayOutputStream contentBuffer = new ByteArrayOutputStream();
 
         int totalRead = 0;
-        int bytesRead = 0;
+        int bytesRead;
         while ((bytesRead = in.read(content, 0, contentLength)) != -1) {
             contentBuffer.write(content, 0, bytesRead);
             totalRead += bytesRead;
@@ -42,7 +43,7 @@ public class BodyParser {
         return contentBuffer.toByteArray();
     }
 
-    public ArrayList<MultipartObject> getMultipartContent(InputStream inputStream, int contentLength, String _boundary) throws IOException {
+    public List<MultipartObject> getMultipartContent(InputStream inputStream, int contentLength, String _boundary) throws IOException {
 
         BufferedInputStream reader = new BufferedInputStream(inputStream);
 
@@ -53,7 +54,7 @@ public class BodyParser {
         String boundaryEndPart = "--";
         int contentBufferLength = boundary.length() + 4;
 
-        ArrayList<MultipartObject> toReturn = new ArrayList<MultipartObject>();
+        ArrayList<MultipartObject> toReturn = new ArrayList<>();
         ByteArrayOutputStream contentBuffer = new ByteArrayOutputStream();
         ByteArrayOutputStream headerBuffer = new ByteArrayOutputStream();
         ByteBuffer tempHeaderBuffer = ByteBuffer.allocate(1024);

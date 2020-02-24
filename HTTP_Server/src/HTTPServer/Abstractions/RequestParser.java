@@ -1,4 +1,4 @@
-package HTTPServer;
+package HTTPServer.Abstractions;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -7,9 +7,12 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * @author: Stanislaw J. Malec  (sm223ak@student.lnu.se)
- * @author: Love Samuelsson     (ls223qx@student.lnu.se)
+ * @author Stanislaw J. Malec  (sm223ak@student.lnu.se)
+ * @author Love Samuelsson     (ls223qx@student.lnu.se)
  * 2020-02-15
+ * <p>
+ * Receives, parses and handles errors when dealing with a HTTP Request.
+ * Purpose of this class is to return a 'nicer' Request object that holds all relevant information about the HTTP request.
  */
 
 /* what a HTTP request looks like:
@@ -23,10 +26,13 @@ Connection: keep-alive
 public class RequestParser {
 
 	public RequestParser() {
-
+		// Empty constructor
+		// TODO - Evaluate if this *really* needs to be an object.
 	}
 
-	// Parses request,
+	// Parses request, throws IllegalArgumentException if bad header format is found. IOException if something happens during receive.
+	// Returns a Request object that represents the received request.
+	// TODO - Reduce size and complexity of this method!
 	public Request parseRequest(InputStream input) throws IOException {
 		// Gets a full request with lines split at CRLF. Blocks until CRLFx2 is received.
 		String[] requestLines = getRequest(input);

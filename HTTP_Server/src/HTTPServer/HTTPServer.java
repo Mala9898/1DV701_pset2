@@ -8,8 +8,8 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 
 /**
- * @author: Stanislaw J. Malec  (sm223ak@student.lnu.se)
- * @author: Love Samuelsson     (ls223qx@student.lnu.se)
+ * @author Stanislaw J. Malec  (sm223ak@student.lnu.se)
+ * @author Love Samuelsson     (ls223qx@student.lnu.se)
  * 2020-02-15
  */
 public class HTTPServer {
@@ -89,8 +89,8 @@ public class HTTPServer {
 	}
 
 	/**
-	 * @param arguments
-	 * @return
+	 * @param arguments The input arguments for the jar file
+	 * @return the parsed port number if valid, throws if invalid
 	 */
 	private static int checkPort(String[] arguments) {
 		if (!validPort(arguments[0])) {

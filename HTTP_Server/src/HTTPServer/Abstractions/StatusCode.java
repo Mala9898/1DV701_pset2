@@ -1,8 +1,8 @@
-package HTTPServer;
+package HTTPServer.Abstractions;
 
 /**
- * @author: Stanislaw J. Malec  (sm223ak@student.lnu.se)
- * @author: Love Samuelsson     (ls223qx@student.lnu.se)
+ * @author Stanislaw J. Malec  (sm223ak@student.lnu.se)
+ * @author Love Samuelsson     (ls223qx@student.lnu.se)
  * 2020-02-15
  */
 
@@ -33,13 +33,13 @@ public enum StatusCode {
     SERVER_ERROR_501_NOT_IMPLEMENTED("501 Not Implemented"),
     SERVER_ERROR_503_SERVICE_UNAVAILABLE("503 Service Unavailable");
 
-    private String statusCode;
+    private String currentStatus;
 
     StatusCode(String statusCode) {
-        this.statusCode = statusCode;
+        this.currentStatus = statusCode;
     }
 
     public String getCode() {
-        return statusCode;
+        return currentStatus;
     }
 }

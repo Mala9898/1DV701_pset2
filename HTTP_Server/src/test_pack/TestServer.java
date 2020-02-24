@@ -1,19 +1,17 @@
-/**
- * @author: Love Samuelsson     (ls223qx@student.lnu.se)
- * @author: Stanislaw J. Malec  (sm223ak@student.lnu.se)
- * 2020-02-15
- */
-
 package test_pack;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.ServerSocket;
-
+/**
+ * @author Love Samuelsson     (ls223qx@student.lnu.se)
+ * @author Stanislaw J. Malec  (sm223ak@student.lnu.se)
+ * 2020-02-15
+ */
 public class TestServer {
-	private static File rootDir = null;
 
 	public static void main(String[] args) {
+		File rootDir = null;
 		if (args.length != 1) {
 			System.err.println("usage: specify root directory");
 			System.err.println("Continuing using default directory...");
