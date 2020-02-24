@@ -10,8 +10,6 @@ import java.util.regex.Pattern;
  * @author: Stanislaw J. Malec  (sm223ak@student.lnu.se)
  * @author: Love Samuelsson     (ls223qx@student.lnu.se)
  * 2020-02-15
- * <p>
- * TODO: implement GET, HEAD, POST, PUT
  */
 
 /* what a HTTP request looks like:
@@ -24,73 +22,24 @@ Connection: keep-alive
  */
 public class RequestParser {
 
-	private byte[] requestBytes;
-	private String requestFull;
-	private String[] requestLines;
-
-	private String[] httpMain = null;
-
 	public RequestParser() {
 
 	}
 
-	public Request parseRequest(InputStream inputStream) throws IOException {
-		ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-
-		byte read;
-		boolean run = true;
-
-		boolean first = true;
-		boolean second = false;
-
-		while (run) {
-			// Read bytes, valid header is ALWAYS in ASCII.
-			if ((read = (byte) inputStream.read()) != -1) {
-				System.out.print((char) read);
-				// Add byte to list.
-				bytes.write(read);
-				// On CR or LF
-				if (read == '\r' || read == '\n') {
-					if (first) {
-						// On CR
-						first = false;
-					}
-					// SonarLint is wrong, second does turn true on CRLFx2!!
-					// On CRLFx2, terminate while loop.
-					else if (second) {
-						run = false;
-					}
-					else {
-						// On LF
-						second = true;
-						first = true;
-					}
-				}
-				// On any character other than CR or LF
-				else {
-					second = false;
-					first = true;
-				}
-			}
-			else {
-				run = false;
-			}
-		}
-
-		requestFull = new String(bytes.toByteArray());
-
-		// Split on CRLF
-		requestLines = requestFull.split("[\\r\\n]+");
+	// Parses request,
+	public Request parseRequest(InputStream input) throws IOException {
+		// Gets a full request with lines split at CRLF. Blocks until CRLFx2 is received.
+		String[] requestLines = getRequest(input);
 
 		Request toReturn = new Request();
-
 		String[] processing;
-		boolean first2 = true;
+		boolean first = true;
+
+		// On first line, ex GET / HTTP/1.1
+		// HTTP method is case sensitive!
 		for (String line : requestLines) {
 			processing = line.split(":");
-			// On first line, ex GET / HTTP/1.1
-			// HTTP method is case sensitive!
-			if (first2) {
+			if (first) {
 				processing = line.split("\\s+");
 				if (processing.length != 3) {
 					throw new IllegalArgumentException();
@@ -99,11 +48,11 @@ public class RequestParser {
 					toReturn.setMethod(processing[0]);
 					toReturn.setPathRequest(processing[1]);
 					toReturn.setHttpVersion(processing[2]);
-					first2 = false;
+					first = false;
 				}
 			}
 			else {
-				// User agent is split in a more sophisticated way, fix!
+				// TODO User agent is split in a more sophisticated way, fix!
 				if (processing[0].equalsIgnoreCase("User-Agent")) {
 					toReturn.setUserAgent(processing[1].trim());
 				}
@@ -139,7 +88,57 @@ public class RequestParser {
 			}
 		}
 		return toReturn;
+	}
 
+	// Gets and splits an incoming request into a String[] array, split on CRLF. Blocks until CRLFx2 comes in.
+	private String[] getRequest(InputStream inputStream) throws IOException {
+		// Holds all bytes
+		ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+
+		// Holds a single character in byte form
+		byte read;
+
+		// State booleans
+		boolean loop = true;
+		boolean first = true;
+		boolean second = false;
+
+		while (loop) {
+			// Read bytes, valid header is ALWAYS in ASCII.
+			if ((read = (byte) inputStream.read()) != -1) {
+				System.out.print((char) read);
+				// Add byte to list.
+				bytes.write(read);
+				// On CR or LF
+				if (read == '\r' || read == '\n') {
+					if (first) {
+						// On CR
+						first = false;
+					}
+					// SonarLint is wrong, second does turn true on CRLFx2!!
+					// On CRLFx2, terminate while loop.
+					else if (second) {
+						loop = false;
+					}
+					else {
+						// On LF
+						second = true;
+						first = true;
+					}
+				}
+				// On any character other than CR or LF
+				else {
+					second = false;
+					first = true;
+				}
+			}
+			// When -1 is read, client has sent FIN.
+			else {
+				loop = false;
+			}
+		}
+		// Returns a String array that is split on CRLF.
+		return new String(bytes.toByteArray()).split("[\\r\\n]+");
 	}
 
 }

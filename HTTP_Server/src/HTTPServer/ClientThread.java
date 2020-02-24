@@ -41,6 +41,7 @@ public class ClientThread implements Runnable {
 		// Failure boolean prevents request handling, kills thread prematurely.
 		boolean failure = false;
 
+		// Sets up InputStream and OutputStream, set failure boolean if this throws.
 		try {
 			outputStream = new BufferedOutputStream(clientSocket.getOutputStream());
 			inputStream = clientSocket.getInputStream();
@@ -50,6 +51,7 @@ public class ClientThread implements Runnable {
 			failure = true;
 		}
 
+		// Sets up request objects
 		RequestParser requestParser = new RequestParser();
 		Request request = null;
 
@@ -248,7 +250,7 @@ public class ClientThread implements Runnable {
 		}
 
 		if (request.getContentType().equals("multipart/form-data")) {
-
+			// TODO implement this
 		}
 		else if (request.getContentType().equals("image/png")) {
 
@@ -265,7 +267,6 @@ public class ClientThread implements Runnable {
 			catch (Exception e) {
 				System.out.println("Something went wrong: " + e.getMessage());
 				internalError = true;
-				e.printStackTrace();
 			}
 
 
@@ -284,10 +285,8 @@ public class ClientThread implements Runnable {
 			// 200 OK if replacing
 		}
 		else {
-			// TODO send some error
+			sendError(StatusCode.CLIENT_ERROR_415_UNSUPPORTED_MEDIA_TYPE);
 		}
-
-
 	}
 
 	private void sendError(StatusCode statusCode) throws IOException {
