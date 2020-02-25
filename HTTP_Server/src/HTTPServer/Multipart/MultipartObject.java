@@ -1,5 +1,6 @@
 package HTTPServer.Multipart;
 
+import java.io.IOException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -33,15 +34,16 @@ public class MultipartObject {
         Matcher matcher = pattern.matcher(line);
 
         while (matcher.find()) {
-//            System.out.printf("group count: %d %n", matcher.groupCount());
-            if(matcher.groupCount() >= 2) {
+            if(matcher.groupCount()==3) {
+                // replace spaces with %20 in the filename
+                String to20ify = matcher.group("filename");
+                dispositionFilename = to20ify.replaceAll(" ", "%20");
                 dispositionType = matcher.group("disposition");
                 dispositionName = matcher.group("name");
                 hasDisposition = true;
-            }
-            if(matcher.groupCount()==3) {
-                dispositionFilename = matcher.group("filename");
-                hasDisposition = true;
+
+            } else {
+                throw new IllegalArgumentException("Image was not found in multipart/form-data");
             }
             continue;
         }
@@ -91,5 +93,9 @@ public class MultipartObject {
 
     public String getDispositionContentType() {
         return dispositionContentType;
+    }
+
+    public void setDispositionFilename(String dispositionFilename) {
+        this.dispositionFilename = dispositionFilename;
     }
 }

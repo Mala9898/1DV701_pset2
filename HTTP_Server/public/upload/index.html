@@ -8,9 +8,12 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     </head>
     <body>
-        <form method="post" enctype="multipart/form-data">
+        <form method="post" enctype="multipart/form-data" action="/content">
             <input type="file" name="files[]" multiple />
-            <input type="submit" value="Upload File" name="submit" />
+<!--            <input type="submit" value="Upload File" name="submit" />-->
+            <div>
+                <button>Submit</button>
+            </div>
         </form>
     </body>
 </html>
