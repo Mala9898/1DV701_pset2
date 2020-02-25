@@ -151,7 +151,6 @@ public class ClientThread implements Runnable {
 		boolean error404 = false;
 		StatusCode finalStatus = StatusCode.SUCCESS_200_OK;
 
-		// TODO - maybe rewrite this to avoid creating a file object, maybe a path object is enough?
 		File requestedFile = new File(servingDirectory, request.getPathRequest());
 
 		// -------- TEST REDIRECT FUNCTIONALITY --------
@@ -159,30 +158,30 @@ public class ClientThread implements Runnable {
 			sendRedirect("/redirectlanding");
 			return;
 		}
-
-		// -------- 403 FORBIDDEN FUNCTIONALITY --------
-		if (request.getPathRequest().startsWith("/forbidden")) {
+		// Checks if requested path is allowed, or if we should send 403 and stop method.
+		if (!isPathAllowed(requestedFile, request)) {
 			sendError(StatusCode.CLIENT_ERROR_403_FORBIDDEN);
 			return;
 		}
 
 		// ----- hijack "/content" endpoint to serve a dynamically generated HTML page with listed content uploads
-		if(request.getPathRequest().equals("/content")) {
-			File file = new File(servingDirectory.getAbsolutePath()+"/content");
+		if (request.getPathRequest().equals("/content")) {
+			File file = new File(servingDirectory.getAbsolutePath() + "/content");
 			String[] files = file.list();
 
 			StringBuilder message = new StringBuilder();
-			if(files.length <= 0) {
+			if (files.length <= 0) {
 				message.append("<p>No content currently exists on the server.</p>");
-			} else {
+			}
+			else {
 				message.append("<ul>\n");
-				for(String s : files) {
-					message.append(String.format("<li><a href=\"%s\">%s</a></li>", "/content/"+s, s).toString());
+				for (String s : files) {
+					message.append(String.format("<li><a href=\"%s\">%s</a></li>", "/content/" + s, s).toString());
 				}
 				message.append("</ul>\n");
 			}
 			ResponseBuilder responseBuilder = new ResponseBuilder();
-			String body = responseBuilder.HTMLMessage(message.toString());
+			String body = responseBuilder.generateHTMLMessage(message.toString());
 			String header = responseBuilder.generateGenericHeader("text/html", StatusCode.CLIENT_ERROR_403_FORBIDDEN, body.length());
 			outputStream.write(header.getBytes());
 			outputStream.write(body.getBytes());
@@ -210,18 +209,18 @@ public class ClientThread implements Runnable {
 				}
 			}
 		}
-		// If requested file is a single file and not directory, and is also readable.
 		else if (Files.isReadable(Paths.get(requestedPath))) {
+			// If requested file is a single file and not directory, and is also readable.
 			finalPath = requestedPath;
 		}
-		// If file or folder does not exist.
 		else {
+			// If file or folder does not exist.
 			error404 = true;
 		}
 
 		if (error404) {
 			// If previous if-block indicates that resource does not exist, set response to path 404.html and 404 header.
-			sendContentResponse(error404Path, StatusCode.CLIENT_ERROR_404_NOT_FOUND);
+			sendError(StatusCode.CLIENT_ERROR_404_NOT_FOUND);
 		}
 		else {
 			// Otherwise, send requested content.
@@ -279,15 +278,17 @@ public class ClientThread implements Runnable {
 						sendError(StatusCode.SERVER_ERROR_500_INTERNAL_SERVER_ERROR);
 						return;
 					}
-					sendHeaderResponse( "/content/"+multipartObject.getDispositionFilename(), StatusCode.SUCCESS_201_CREATED);
-					System.out.printf("sent RESPONSE! {%s} %n", "/content/"+multipartObject.getDispositionFilename());
+					sendHeaderResponse("/content/" + multipartObject.getDispositionFilename(), StatusCode.SUCCESS_201_CREATED);
+					System.out.printf("sent RESPONSE! {%s} %n", "/content/" + multipartObject.getDispositionFilename());
+				}
+				else {
+					sendError(StatusCode.CLIENT_ERROR_415_UNSUPPORTED_MEDIA_TYPE);
 				}
 
 			}
 			else {
 				System.err.println("Did not receive a single image");
 				sendError(StatusCode.CLIENT_ERROR_400_BAD_REQUEST);
-				return;
 			}
 		}
 		// ++++++ ONLY IF NEEDED ++++++++
@@ -307,6 +308,7 @@ public class ClientThread implements Runnable {
 	}
 
 	// Processes a received PUT request. Exceptions are thrown to caller.
+	// TODO - Make sure a client can't create huge subfolder structures.
 	private void processPut(Request request) throws IOException {
 
 		// https://stackoverflow.com/questions/797834/should-a-restful-put-operation-return-something
@@ -321,20 +323,13 @@ public class ClientThread implements Runnable {
 		boolean exists = requestedFile.exists();
 		byte[] payloadData = bodyParser.getBinaryContent(inputStream, request.getContentLength());
 
-		// TODO -- Move this into a separate method, reused code!!
-		if (!requestedFile.getCanonicalPath().startsWith(servingDirectory.getCanonicalPath())) {
-			// TODO - Send 403 Forbidden!
-			System.err.println("400 bad request, terminating");
+		// Checks if requested path is allowed, or if we should send 403 and stop method.
+		if (!isPathAllowed(requestedFile, request)) {
 			sendError(StatusCode.CLIENT_ERROR_403_FORBIDDEN);
 			return;
 		}
 
-		if (request.getContentType().equals("multipart/form-data")) {
-			// TODO implement this
-		}
-		else if (request.getContentType().equals("image/png")) {
-
-			// TODO - Make this actually function as intended, make sure no huge subfolder structures are created.
+		if (request.getContentType().equals("image/png")) {
 //			if (requestedFile.getCanonicalPath().startsWith(servingDirectory.getCanonicalPath() + "\\upload\\")) {
 //				System.out.println("OK");
 //			}
@@ -377,32 +372,12 @@ public class ClientThread implements Runnable {
 		ResponseBuilder responseBuilder = new ResponseBuilder();
 		String body;
 		String header;
-		switch (statusCode) {
-			case CLIENT_ERROR_404_NOT_FOUND:
-//				error404Path
-				body = responseBuilder.HTMLMessage("404 not found");
-				header = responseBuilder.generateGenericHeader("text/html", StatusCode.CLIENT_ERROR_404_NOT_FOUND, body.length());
-				outputStream.write(header.getBytes());
-				outputStream.write(body.getBytes());
-				outputStream.flush();
-				break;
 
-			case CLIENT_ERROR_403_FORBIDDEN:
-				body = responseBuilder.HTMLMessage("403 Forbidden");
-				header = responseBuilder.generateGenericHeader("text/html", StatusCode.CLIENT_ERROR_403_FORBIDDEN, body.length());
-				outputStream.write(header.getBytes());
-				outputStream.write(body.getBytes());
-				outputStream.flush();
-				break;
-
-			case CLIENT_ERROR_400_BAD_REQUEST:
-				body = responseBuilder.HTMLMessage("400 Bad Request");
-				header = responseBuilder.generateGenericHeader("text/html", StatusCode.CLIENT_ERROR_400_BAD_REQUEST, body.length());
-				outputStream.write(header.getBytes());
-				outputStream.write(body.getBytes());
-				outputStream.flush();
-				break;
-		}
+		body = responseBuilder.generateHTMLMessage(statusCode.getCode());
+		header = responseBuilder.generateGenericHeader("text/html", statusCode, body.length());
+		outputStream.write(header.getBytes());
+		outputStream.write(body.getBytes());
+		outputStream.flush();
 	}
 
 	private void sendRedirect(String location) throws IOException {
@@ -436,15 +411,26 @@ public class ClientThread implements Runnable {
 		outputStream.flush();
 	}
 
-	// TODO - Check if if someone tries to get out of the intended pathway, return true if OK, false if trying to access something they shouldn't.
-	private boolean checkPathAccess() {
-		return false;
+	// Check if if someone tries to get out of the intended pathway, return true if OK, false if trying to access something they shouldn't.
+	private boolean isPathAllowed(File requestedFile, Request request) throws IOException {
+		// -------- 403 FORBIDDEN FUNCTIONALITY --------
+		if (request.getPathRequest().startsWith("/forbidden")) {
+			return false;
+		}
+		// Checks for ../ hacks, returns false if request tried to move upwards in directory structure.
+		else if (!requestedFile.getCanonicalPath().startsWith(servingDirectory.getCanonicalPath())) {
+			return false;
+		}
+		else {
+			return true;
+		}
 	}
 
 	/**
 	 * Given a file "file1.png" exists, this returns "file2.png"
-	 * @param filename
-	 * @return
+	 *
+	 * @param filename filename to be combined with number
+	 * @return a default random number along with the filename
 	 */
 	private String getIteratedFilename(String filename) {
 		Random random = new Random();

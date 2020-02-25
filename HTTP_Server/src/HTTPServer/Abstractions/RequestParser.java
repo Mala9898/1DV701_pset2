@@ -138,9 +138,9 @@ public class RequestParser {
 					first = true;
 				}
 			}
-			// When -1 is read, client has sent FIN.
+			// When -1 is read, client has sent FIN prematurely, malformed HTTP request
 			else {
-				loop = false;
+				throw new IOException("Host closed their connection");
 			}
 		}
 		// Returns a String array that is split on CRLF.

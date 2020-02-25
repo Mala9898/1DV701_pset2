@@ -61,7 +61,7 @@ public class ResponseBuilder {
         message.append("Content-Type: text/html").append(CRLF);
         message.append(CRLF);
 
-        message.append(HTMLMessage("moved to <a href=\"" + location + "\">"));
+        message.append(generateHTMLMessage("moved to <a href=\"" + location + "\">"));
 
         return message.toString();
     }
@@ -72,14 +72,15 @@ public class ResponseBuilder {
      * @param message The massage to put into the basic HTML document
      * @return a basic HTML document
      */
-    public String HTMLMessage(String message) {
+    public String generateHTMLMessage(String message) {
         return "<!DOCTYPE html>\n" +
                 "<html lang=\"en\">\n" +
                 "<head>\n" +
                 "    <title>Webserver</title>\n" +
                 "</head>\n" +
                 "<body>\n" +
-                message+"\n" +
+                "<h1>" + message + "</h1>\n" +
+                "<a href=\"index.html\">Back to homepage</a>" +
                 "</body>\n" +
                 "</html>";
     }

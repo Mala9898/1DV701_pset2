@@ -26,7 +26,8 @@ public class Request {
 
     /**
      * Is the request valid? (i.e either multipart/form-data or image/png)
-     * @return
+     *
+     * @return true if passed basic checks, false otherwise.
      */
     public boolean isValidPOST() {
         // we only support multipart/form-data and binary uploads (image/png)
