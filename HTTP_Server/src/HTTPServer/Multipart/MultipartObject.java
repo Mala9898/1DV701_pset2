@@ -92,4 +92,8 @@ public class MultipartObject {
     public String getDispositionContentType() {
         return dispositionContentType;
     }
+
+    public void setDispositionFilename(String dispositionFilename) {
+        this.dispositionFilename = dispositionFilename;
+    }
 }

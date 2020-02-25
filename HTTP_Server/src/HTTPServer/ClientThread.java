@@ -10,6 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Random;
 
 /**
  * @author Stanislaw J. Malec  (sm223ak@student.lnu.se)
@@ -209,40 +210,55 @@ public class ClientThread implements Runnable {
 		System.out.println("GOT POST REQUEST!");
 		System.out.printf("content-type={%s} boundary={%s} %n", request.getContentType(), request.getBoundary());
 
-//		sendError(StatusCode.CLIENT_ERROR_400_BAD_REQUEST);
+		if(!request.isValidPOST())
+			sendError(StatusCode.CLIENT_ERROR_400_BAD_REQUEST);
 
-		// Our API POST endpoint
-		if(request.getPathRequest().equals("/content")) {
-
+		// We only serve one endpoint
+		if(!request.getPathRequest().equals("/content")) {
+			sendError(StatusCode.CLIENT_ERROR_404_NOT_FOUND);
 		}
 
-
-
 		// everything is OK. Tell client they can go ahead and send the rest of the payload if they haven't already.
-		outputStream.write("HTTP/1.1 100 Continue".getBytes());
-
+		// TODO somehow Insomnia doesn't recognize this?!
+		//  outputStream.write("HTTP/1.1 100 Continue\r\n".getBytes());
 
 		BodyParser bodyParser = new BodyParser();
-
+		boolean internalError = false;
 		if (request.getContentType().equals("multipart/form-data")) {
 			// HERE WE HAVE ACCESS TO ALL THE INDIVIDUAL MULTIPART OBJECTS! (including, name, filename, payload etc.)
-
+			// But we restrict ourselves to only one image upload :)
 			List<MultipartObject> payloadData = bodyParser.getMultipartContent(inputStream, request.getContentLength(), request.getBoundary());
 
 			if (payloadData.size() == 1) {
-				for (MultipartObject multipartObject : payloadData) {
-					// only save png images
-					if (multipartObject.getDispositionContentType().equals("image/png")) {
-						System.out.printf("saving {%s} %n", multipartObject.getDispositionFilename());
-						try (OutputStream out = new FileOutputStream(servingDirectory.getAbsolutePath() + "/uploaded/" + multipartObject.getDispositionFilename())) {
-							out.write(multipartObject.getData());
-						}
-						catch (Exception e) {
-							System.out.println("Couldn't save file: " + e.getMessage());
-							e.printStackTrace();
-						}
+				// get the first multipart/form-data object
+				MultipartObject multipartObject = payloadData.get(0);
+
+				// only save png image
+				if (multipartObject.getDispositionContentType().equals("image/png")) {
+
+					Path destination = Paths.get(servingDirectory +"/content/" + multipartObject.getDispositionFilename());
+					File requestedFile = new File(String.valueOf(destination));
+
+					// check if resource already exists
+					if(requestedFile.exists()) {
+						Random random = new Random();
+						multipartObject.setDispositionFilename(random.nextInt()+multipartObject.getDispositionFilename());
 					}
+
+					System.out.printf("saving {%s} %n", multipartObject.getDispositionFilename());
+					try (OutputStream out = new FileOutputStream(servingDirectory.getAbsolutePath() + "/content/" + multipartObject.getDispositionFilename())) {
+						out.write(multipartObject.getData());
+					}
+					catch (Exception e) {
+						internalError = true;
+						System.out.println("Couldn't save file: " + e.getMessage());
+						sendError(StatusCode.SERVER_ERROR_500_INTERNAL_SERVER_ERROR);
+						return;
+					}
+					sendHeaderResponse( "/content/"+multipartObject.getDispositionFilename(), StatusCode.SUCCESS_201_CREATED);
+					System.out.printf("sent RESPONSE! {%s} %n", "/content/"+multipartObject.getDispositionFilename());
 				}
+
 			}
 			else {
 				System.err.println("Did not receive a single image");
@@ -250,16 +266,15 @@ public class ClientThread implements Runnable {
 				return;
 			}
 
-			// TODO -- Send response
 			// 201 created if new + Location
-			// 200 OK if replacing
+			// !!!! [[[[200 OK if replacing]]]]: lets assume POST always creates a new resource.
 		}
 		else if (request.getContentType().equals("image/png")) {
 			byte[] payloadData = bodyParser.getBinaryContent(inputStream, request.getContentLength());
-			Path writeDestination = Paths.get(servingDirectory + "/uploaded/FINALE.png");
+			Path writeDestination = Paths.get(servingDirectory + "/content/FINALE.png");
 
 			System.out.println("writing a file...");
-			try (OutputStream out = new FileOutputStream(servingDirectory.getAbsolutePath() + "/uploaded//FINALE.png")) {
+			try (OutputStream out = new FileOutputStream(servingDirectory.getAbsolutePath() + "/content//FINALE.png")) {
 				out.write(payloadData);
 			}
 			catch (Exception e) {
