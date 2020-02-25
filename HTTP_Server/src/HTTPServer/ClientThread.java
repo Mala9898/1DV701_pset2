@@ -265,10 +265,8 @@ public class ClientThread implements Runnable {
 				sendError(StatusCode.CLIENT_ERROR_400_BAD_REQUEST);
 				return;
 			}
-
-			// 201 created if new + Location
-			// !!!! [[[[200 OK if replacing]]]]: lets assume POST always creates a new resource.
 		}
+		// ++++++ ONLY IF NEEDED ++++++++
 		else if (request.getContentType().equals("image/png")) {
 			byte[] payloadData = bodyParser.getBinaryContent(inputStream, request.getContentLength());
 			Path writeDestination = Paths.get(servingDirectory + "/content/FINALE.png");
@@ -303,7 +301,8 @@ public class ClientThread implements Runnable {
 		if (!requestedFile.getCanonicalPath().startsWith(servingDirectory.getCanonicalPath())) {
 			// TODO - Send 403 Forbidden!
 			System.err.println("400 bad request, terminating");
-			System.exit(1);
+			sendError(StatusCode.CLIENT_ERROR_403_FORBIDDEN);
+			return;
 		}
 
 		if (request.getContentType().equals("multipart/form-data")) {
@@ -312,9 +311,9 @@ public class ClientThread implements Runnable {
 		else if (request.getContentType().equals("image/png")) {
 
 			// TODO - Make this actually function as intended, make sure no huge subfolder structures are created.
-			if (requestedFile.getCanonicalPath().startsWith(servingDirectory.getCanonicalPath() + "\\upload\\")) {
-				System.out.println("OK");
-			}
+//			if (requestedFile.getCanonicalPath().startsWith(servingDirectory.getCanonicalPath() + "\\upload\\")) {
+//				System.out.println("OK");
+//			}
 
 			// write or overwrite depending exist state
 			System.out.println("Attempting write...");
@@ -333,7 +332,7 @@ public class ClientThread implements Runnable {
 			}
 			else if (internalError) {
 				System.err.println("Internal Server Error");
-				// TODO - Send 500 internal server error
+				sendError(StatusCode.SERVER_ERROR_500_INTERNAL_SERVER_ERROR);
 			}
 			else {
 				// send 201 created if new
