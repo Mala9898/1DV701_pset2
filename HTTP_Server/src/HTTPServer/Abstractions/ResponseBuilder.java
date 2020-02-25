@@ -84,4 +84,21 @@ public class ResponseBuilder {
                 "</body>\n" +
                 "</html>";
     }
+    /**
+     * Returns a simple HTML document with provided body
+     *
+     * @param body The body to put into the basic HTML document
+     * @return a basic HTML document
+     */
+    public String generateHTMLwithBody(String body) {
+        return "<!DOCTYPE html>\n" +
+                "<html lang=\"en\">\n" +
+                "<head>\n" +
+                "    <title>Webserver</title>\n" +
+                "</head>\n" +
+                "<body>\n" +
+                body + "\n" +
+                "</body>\n" +
+                "</html>";
+    }
 }
