@@ -206,6 +206,7 @@ public class ClientThread implements Runnable {
 	}
 
 	// Processes a received POST Request. Exceptions are thrown to caller
+	// We implement a /content REST API endpoint here
 	private void processPost(Request request) throws IOException {
 		System.out.println("GOT POST REQUEST!");
 		System.out.printf("content-type={%s} boundary={%s} %n", request.getContentType(), request.getBoundary());
@@ -220,7 +221,7 @@ public class ClientThread implements Runnable {
 
 		// everything is OK. Tell client they can go ahead and send the rest of the payload if they haven't already.
 		// TODO somehow Insomnia doesn't recognize this?!
-		//  outputStream.write("HTTP/1.1 100 Continue\r\n".getBytes());
+//		  outputStream.write("HTTP/1.1 100 Continue\r\n".getBytes());
 
 		BodyParser bodyParser = new BodyParser();
 		boolean internalError = false;
