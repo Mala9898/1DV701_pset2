@@ -242,8 +242,7 @@ public class ClientThread implements Runnable {
 
 					// check if resource already exists
 					if(requestedFile.exists()) {
-						Random random = new Random();
-						multipartObject.setDispositionFilename(random.nextInt()+multipartObject.getDispositionFilename());
+						multipartObject.setDispositionFilename(getIteratedFilename(multipartObject.getDispositionFilename()));
 					}
 
 					System.out.printf("saving {%s} %n", multipartObject.getDispositionFilename());
@@ -417,5 +416,15 @@ public class ClientThread implements Runnable {
 	// TODO - Check if if someone tries to get out of the intended pathway, return true if OK, false if trying to access something they shouldn't.
 	private boolean checkPathAccess() {
 		return false;
+	}
+
+	/**
+	 * Given a file "file1.png" exists, this returns "file2.png"
+	 * @param filename
+	 * @return
+	 */
+	private String getIteratedFilename(String filename) {
+		Random random = new Random();
+		return random.nextInt() + filename;
 	}
 }

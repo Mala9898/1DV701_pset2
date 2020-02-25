@@ -30,17 +30,14 @@ public class MultipartObject {
 
         String line = new String(header);
 
-//        THIS ONE ALLOWS SPACES IN FILENAME
         Pattern pattern = Pattern.compile( "^Content-Disposition:[\\s]{0,1}(?<disposition>[\\w\\/-]+)(?:;\\s{0,1}name=\"(?<name>[\\w-\\[\\]]+)\")(?:;\\s{0,1}filename=\"(?<filename>[\\w._ \\-]+)\")?", Pattern.MULTILINE | Pattern.CASE_INSENSITIVE);
-//        Pattern pattern = Pattern.compile( "^Content-Disposition:[\\s]{0,1}(?<disposition>[\\w\\/-]+)(?:;\\s{0,1}name=\"(?<name>[\\w-\\[\\]]+)\")(?:;\\s{0,1}filename=\"(?<filename>[\\w.\\-]+)\")?", Pattern.MULTILINE | Pattern.CASE_INSENSITIVE);
         Matcher matcher = pattern.matcher(line);
 
         while (matcher.find()) {
-//            System.out.printf("group count: %d %n", matcher.groupCount());
             if(matcher.groupCount()==3) {
+                // replace spaces with %20 in the filename
                 String to20ify = matcher.group("filename");
                 dispositionFilename = to20ify.replaceAll(" ", "%20");
-                System.out.println(dispositionFilename);
                 dispositionType = matcher.group("disposition");
                 dispositionName = matcher.group("name");
                 hasDisposition = true;
