@@ -181,7 +181,7 @@ public class ClientThread implements Runnable {
 				message.append("</ul>\n");
 			}
 			ResponseBuilder responseBuilder = new ResponseBuilder();
-			String body = responseBuilder.generateHTMLMessage(message.toString());
+			String body = responseBuilder.generateHTMLwithBody(message.toString());
 			String header = responseBuilder.generateGenericHeader("text/html", StatusCode.CLIENT_ERROR_403_FORBIDDEN, body.length());
 			outputStream.write(header.getBytes());
 			outputStream.write(body.getBytes());
