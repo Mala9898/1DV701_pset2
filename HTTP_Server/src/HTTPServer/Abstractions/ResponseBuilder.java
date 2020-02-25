@@ -70,7 +70,7 @@ public class ResponseBuilder {
      * Returns a simple HTML document with a message
      *
      * @param message The massage to put into the basic HTML document
-     * @return a basic HTML document
+     * @return a basic but syntax complete HTML document
      */
     public String generateHTMLMessage(String message) {
         return "<!DOCTYPE html>\n" +

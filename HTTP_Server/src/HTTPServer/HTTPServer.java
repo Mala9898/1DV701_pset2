@@ -19,6 +19,7 @@ public class HTTPServer {
 	private static File servingDirectory;
 	private static int localPort;
 	private static final int UNIT16_MAX = 65535;
+	private static int expectedArguments = 2;
 
 	public static void main(String[] args) {
 		// Terminates program if not 2
@@ -82,8 +83,13 @@ public class HTTPServer {
 		}
 	}
 
+	/**
+	 * Checks if argument length is expected, terminates program if not.
+	 *
+	 * @param args Program arguments
+	 */
 	private static void checkArgLength(String[] args) {
-		if (args.length != 2) {
+		if (args.length != expectedArguments) {
 			printAndQuit("Requires two arguments");
 		}
 	}

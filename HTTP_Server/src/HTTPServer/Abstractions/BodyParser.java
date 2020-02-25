@@ -43,6 +43,7 @@ public class BodyParser {
         return contentBuffer.toByteArray();
     }
 
+    // TODO - This method is gigantic and pretty complex, desperately needs refactoring!
     public List<MultipartObject> getMultipartContent(InputStream inputStream, int contentLength, String _boundary) throws IOException {
 
         BufferedInputStream reader = new BufferedInputStream(inputStream);

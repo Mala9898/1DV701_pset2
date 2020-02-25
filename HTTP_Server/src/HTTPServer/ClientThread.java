@@ -22,11 +22,9 @@ import java.util.Random;
 
 
 public class ClientThread implements Runnable {
-
+	private Random random = new Random();
 	private static final String INDEX_HTML = "/index.html";
 	private static final String INDEX_HTM = "/index.htm";
-	private static final String ERR_404 = "/404.html";
-	private String error404Path;
 	private Socket clientSocket;
 	private File servingDirectory;
 
@@ -37,7 +35,6 @@ public class ClientThread implements Runnable {
 	public ClientThread(Socket clientSocket, File directory) {
 		this.clientSocket = clientSocket;
 		this.servingDirectory = directory;
-		error404Path = servingDirectory.getAbsolutePath() + ERR_404;
 	}
 
 	@Override
@@ -111,8 +108,8 @@ public class ClientThread implements Runnable {
 					break;
 
 				case "HEAD":
-					// TODO
-//					 processHead();
+					// TODO Implement this!
+					processHead(request);
 					break;
 
 				case "CONNECT":
@@ -159,7 +156,7 @@ public class ClientThread implements Runnable {
 			return;
 		}
 		// Checks if requested path is allowed, or if we should send 403 and stop method.
-		if (!isPathAllowed(requestedFile, request)) {
+		if (isPathForbidden(requestedFile, request)) {
 			sendError(StatusCode.CLIENT_ERROR_403_FORBIDDEN);
 			return;
 		}
@@ -234,20 +231,16 @@ public class ClientThread implements Runnable {
 		System.out.println("GOT POST REQUEST!");
 		System.out.printf("content-type={%s} boundary={%s} %n", request.getContentType(), request.getBoundary());
 
-		if(!request.isValidPOST())
+		if (!request.isValidPOST()) {
 			sendError(StatusCode.CLIENT_ERROR_400_BAD_REQUEST);
-
-		// We only serve one endpoint
-		if(!request.getPathRequest().equals("/content")) {
-			sendError(StatusCode.CLIENT_ERROR_404_NOT_FOUND);
 		}
 
-		// everything is OK. Tell client they can go ahead and send the rest of the payload if they haven't already.
-		// TODO somehow Insomnia doesn't recognize this?!
-//		  outputStream.write("HTTP/1.1 100 Continue\r\n".getBytes());
+		// We only serve one endpoint, send 403 if anything else.
+		if (!request.getPathRequest().equals("/content")) {
+			sendError(StatusCode.CLIENT_ERROR_403_FORBIDDEN);
+		}
 
 		BodyParser bodyParser = new BodyParser();
-		boolean internalError = false;
 		if (request.getContentType().equals("multipart/form-data")) {
 			// HERE WE HAVE ACCESS TO ALL THE INDIVIDUAL MULTIPART OBJECTS! (including, name, filename, payload etc.)
 			// But we restrict ourselves to only one image upload :)
@@ -257,34 +250,38 @@ public class ClientThread implements Runnable {
 				// get the first multipart/form-data object
 				MultipartObject multipartObject = payloadData.get(0);
 
+				// TODO - Add support for multiple types of data at the same time
 				// only save png image
 				if (multipartObject.getDispositionContentType().equals("image/png")) {
 
-					Path destination = Paths.get(servingDirectory +"/content/" + multipartObject.getDispositionFilename());
+					Path destination = Paths.get(servingDirectory + "/content/" + multipartObject.getDispositionFilename());
 					File requestedFile = new File(String.valueOf(destination));
 
 					// check if resource already exists
-					if(requestedFile.exists()) {
+					if (requestedFile.exists()) {
 						multipartObject.setDispositionFilename(getIteratedFilename(multipartObject.getDispositionFilename()));
 					}
 
 					System.out.printf("saving {%s} %n", multipartObject.getDispositionFilename());
+
+					// Attempts to write file, sends 500 internal error if failed
 					try (OutputStream out = new FileOutputStream(servingDirectory.getAbsolutePath() + "/content/" + multipartObject.getDispositionFilename())) {
 						out.write(multipartObject.getData());
 					}
 					catch (Exception e) {
-						internalError = true;
 						System.out.println("Couldn't save file: " + e.getMessage());
 						sendError(StatusCode.SERVER_ERROR_500_INTERNAL_SERVER_ERROR);
 						return;
 					}
+					// Sends 201 created on success
 					sendHeaderResponse("/content/" + multipartObject.getDispositionFilename(), StatusCode.SUCCESS_201_CREATED);
+
 					System.out.printf("sent RESPONSE! {%s} %n", "/content/" + multipartObject.getDispositionFilename());
 				}
 				else {
+					// If content-type was unexpected, send 415.
 					sendError(StatusCode.CLIENT_ERROR_415_UNSUPPORTED_MEDIA_TYPE);
 				}
-
 			}
 			else {
 				System.err.println("Did not receive a single image");
@@ -292,9 +289,9 @@ public class ClientThread implements Runnable {
 			}
 		}
 		// ++++++ ONLY IF NEEDED ++++++++
+		// TODO - Evaluate what we should do with this, this is currently incomplete.
 		else if (request.getContentType().equals("image/png")) {
 			byte[] payloadData = bodyParser.getBinaryContent(inputStream, request.getContentLength());
-			Path writeDestination = Paths.get(servingDirectory + "/content/FINALE.png");
 
 			System.out.println("writing a file...");
 			try (OutputStream out = new FileOutputStream(servingDirectory.getAbsolutePath() + "/content//FINALE.png")) {
@@ -302,7 +299,7 @@ public class ClientThread implements Runnable {
 			}
 			catch (Exception e) {
 				System.out.println("Something went wrong: " + e.getMessage());
-				e.printStackTrace();
+				sendError(StatusCode.SERVER_ERROR_500_INTERNAL_SERVER_ERROR);
 			}
 		}
 	}
@@ -324,7 +321,7 @@ public class ClientThread implements Runnable {
 		byte[] payloadData = bodyParser.getBinaryContent(inputStream, request.getContentLength());
 
 		// Checks if requested path is allowed, or if we should send 403 and stop method.
-		if (!isPathAllowed(requestedFile, request)) {
+		if (isPathForbidden(requestedFile, request)) {
 			sendError(StatusCode.CLIENT_ERROR_403_FORBIDDEN);
 			return;
 		}
@@ -344,14 +341,13 @@ public class ClientThread implements Runnable {
 				internalError = true;
 			}
 
-
-			if (exists) {
-				// send 204 no content if file existed
-				sendHeaderResponse(request.getPathRequest(), StatusCode.SUCCESS_204_NO_CONTENT);
-			}
-			else if (internalError) {
+			if (internalError) {
 				System.err.println("Internal Server Error");
 				sendError(StatusCode.SERVER_ERROR_500_INTERNAL_SERVER_ERROR);
+			}
+			else if (exists) {
+				// send 204 no content if file existed
+				sendHeaderResponse(request.getPathRequest(), StatusCode.SUCCESS_204_NO_CONTENT);
 			}
 			else {
 				// send 201 created if new
@@ -412,17 +408,17 @@ public class ClientThread implements Runnable {
 	}
 
 	// Check if if someone tries to get out of the intended pathway, return true if OK, false if trying to access something they shouldn't.
-	private boolean isPathAllowed(File requestedFile, Request request) throws IOException {
+	private boolean isPathForbidden(File requestedFile, Request request) throws IOException {
 		// -------- 403 FORBIDDEN FUNCTIONALITY --------
 		if (request.getPathRequest().startsWith("/forbidden")) {
-			return false;
+			return true;
 		}
 		// Checks for ../ hacks, returns false if request tried to move upwards in directory structure.
 		else if (!requestedFile.getCanonicalPath().startsWith(servingDirectory.getCanonicalPath())) {
-			return false;
+			return true;
 		}
 		else {
-			return true;
+			return false;
 		}
 	}
 
@@ -433,7 +429,6 @@ public class ClientThread implements Runnable {
 	 * @return a default random number along with the filename
 	 */
 	private String getIteratedFilename(String filename) {
-		Random random = new Random();
 		return random.nextInt() + filename;
 	}
 }
