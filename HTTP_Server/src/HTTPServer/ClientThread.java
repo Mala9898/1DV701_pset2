@@ -209,6 +209,19 @@ public class ClientThread implements Runnable {
 		System.out.println("GOT POST REQUEST!");
 		System.out.printf("content-type={%s} boundary={%s} %n", request.getContentType(), request.getBoundary());
 
+//		sendError(StatusCode.CLIENT_ERROR_400_BAD_REQUEST);
+
+		// Our API POST endpoint
+		if(request.getPathRequest().equals("/content")) {
+
+		}
+
+
+
+		// everything is OK. Tell client they can go ahead and send the rest of the payload if they haven't already.
+		outputStream.write("HTTP/1.1 100 Continue".getBytes());
+
+
 		BodyParser bodyParser = new BodyParser();
 
 		if (request.getContentType().equals("multipart/form-data")) {
@@ -216,7 +229,7 @@ public class ClientThread implements Runnable {
 
 			List<MultipartObject> payloadData = bodyParser.getMultipartContent(inputStream, request.getContentLength(), request.getBoundary());
 
-			if (payloadData.size() >= 1) {
+			if (payloadData.size() == 1) {
 				for (MultipartObject multipartObject : payloadData) {
 					// only save png images
 					if (multipartObject.getDispositionContentType().equals("image/png")) {
@@ -232,14 +245,14 @@ public class ClientThread implements Runnable {
 				}
 			}
 			else {
-				System.err.println("NO MULTIPART DATA FOUND");
+				System.err.println("Did not receive a single image");
 				sendError(StatusCode.CLIENT_ERROR_400_BAD_REQUEST);
 				return;
 			}
 
 			// TODO -- Send response
-			// 201 created if new
-			// 200 OK or 204 if replacing
+			// 201 created if new + Location
+			// 200 OK if replacing
 		}
 		else if (request.getContentType().equals("image/png")) {
 			byte[] payloadData = bodyParser.getBinaryContent(inputStream, request.getContentLength());
@@ -258,6 +271,8 @@ public class ClientThread implements Runnable {
 
 	// Processes a received PUT request. Exceptions are thrown to caller.
 	private void processPut(Request request) throws IOException {
+
+		// https://stackoverflow.com/questions/797834/should-a-restful-put-operation-return-something
 
 		BodyParser bodyParser = new BodyParser();
 
