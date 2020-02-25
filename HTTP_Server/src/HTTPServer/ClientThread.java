@@ -166,6 +166,30 @@ public class ClientThread implements Runnable {
 			return;
 		}
 
+		// ----- hijack "/content" endpoint to serve a dynamically generated HTML page with listed content uploads
+		if(request.getPathRequest().equals("/content")) {
+			File file = new File(servingDirectory.getAbsolutePath()+"/content");
+			String[] files = file.list();
+
+			StringBuilder message = new StringBuilder();
+			if(files.length <= 0) {
+				message.append("<p>No content currently exists on the server.</p>");
+			} else {
+				message.append("<ul>\n");
+				for(String s : files) {
+					message.append(String.format("<li><a href=\"%s\">%s</a></li>", "/content/"+s, s).toString());
+				}
+				message.append("</ul>\n");
+			}
+			ResponseBuilder responseBuilder = new ResponseBuilder();
+			String body = responseBuilder.HTMLMessage(message.toString());
+			String header = responseBuilder.generateGenericHeader("text/html", StatusCode.CLIENT_ERROR_403_FORBIDDEN, body.length());
+			outputStream.write(header.getBytes());
+			outputStream.write(body.getBytes());
+			outputStream.flush();
+			return;
+		}
+
 
 		if (!requestedFile.getCanonicalPath().startsWith(servingDirectory.getCanonicalPath())) {
 			sendError(StatusCode.CLIENT_ERROR_403_FORBIDDEN);

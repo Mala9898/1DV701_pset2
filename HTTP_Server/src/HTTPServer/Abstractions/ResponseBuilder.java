@@ -76,10 +76,10 @@ public class ResponseBuilder {
         return "<!DOCTYPE html>\n" +
                 "<html lang=\"en\">\n" +
                 "<head>\n" +
-                "    <title>"+message+"</title>\n" +
+                "    <title>Webserver</title>\n" +
                 "</head>\n" +
                 "<body>\n" +
-                "<p>"+message+"</p>\n" +
+                message+"\n" +
                 "</body>\n" +
                 "</html>";
     }
