@@ -179,20 +179,14 @@ public class ClientThread implements Runnable {
 			}
 			ResponseBuilder responseBuilder = new ResponseBuilder();
 			String body = responseBuilder.generateHTMLwithBody(message.toString());
-			String header = responseBuilder.generateGenericHeader("text/html", StatusCode.CLIENT_ERROR_403_FORBIDDEN, body.length());
+			String header = responseBuilder.generateGenericHeader("text/html", StatusCode.SUCCESS_200_OK, body.length());
 			outputStream.write(header.getBytes());
 			outputStream.write(body.getBytes());
 			outputStream.flush();
 			return;
 		}
 
-
-		if (!requestedFile.getCanonicalPath().startsWith(servingDirectory.getCanonicalPath())) {
-			sendError(StatusCode.CLIENT_ERROR_403_FORBIDDEN);
-			return;
-		}
-
-		// If file is readable and is a directory, start looking for HTML or HTM in that folder.
+		// If file is readable and is a directory, serve .HTML, .HTM (in order) if found. Otherwise, 404 not found.
 		if (Files.isDirectory(Paths.get(requestedPath))) {
 			finalPath = requestedPath + INDEX_HTML;
 
@@ -215,14 +209,15 @@ public class ClientThread implements Runnable {
 			error404 = true;
 		}
 
+		// If previous if-block indicates that resource does not exist, set response to path 404.html and 404 header.
 		if (error404) {
-			// If previous if-block indicates that resource does not exist, set response to path 404.html and 404 header.
 			sendError(StatusCode.CLIENT_ERROR_404_NOT_FOUND);
+			return;
 		}
-		else {
-			// Otherwise, send requested content.
-			sendContentResponse(finalPath, finalStatus);
-		}
+
+		// Otherwise, send requested content.
+		sendContentResponse(finalPath, finalStatus);
+
 	}
 
 	// Processes a received POST Request. Exceptions are thrown to caller
@@ -250,7 +245,6 @@ public class ClientThread implements Runnable {
 				// get the first multipart/form-data object
 				MultipartObject multipartObject = payloadData.get(0);
 
-				// TODO - Add support for multiple types of data at the same time
 				// only save png image
 				if (multipartObject.getDispositionContentType().equals("image/png")) {
 
@@ -288,7 +282,7 @@ public class ClientThread implements Runnable {
 				sendError(StatusCode.CLIENT_ERROR_400_BAD_REQUEST);
 			}
 		}
-		// ++++++ ONLY IF NEEDED ++++++++
+		// ++++++ ONLY IF NEEDED ++++++++ we can assume POSTs are only over multipart/form-data <form>s?
 		// TODO - Evaluate what we should do with this, this is currently incomplete.
 		else if (request.getContentType().equals("image/png")) {
 			byte[] payloadData = bodyParser.getBinaryContent(inputStream, request.getContentLength());
@@ -305,7 +299,6 @@ public class ClientThread implements Runnable {
 	}
 
 	// Processes a received PUT request. Exceptions are thrown to caller.
-	// TODO - Make sure a client can't create huge subfolder structures.
 	private void processPut(Request request) throws IOException {
 
 		// https://stackoverflow.com/questions/797834/should-a-restful-put-operation-return-something
@@ -316,20 +309,17 @@ public class ClientThread implements Runnable {
 		Path destination = Paths.get(servingDirectory + request.getPathRequest());
 		File requestedFile = new File(String.valueOf(destination));
 
-		// check if resource already exists
-		boolean exists = requestedFile.exists();
-		byte[] payloadData = bodyParser.getBinaryContent(inputStream, request.getContentLength());
-
 		// Checks if requested path is allowed, or if we should send 403 and stop method.
 		if (isPathForbidden(requestedFile, request)) {
 			sendError(StatusCode.CLIENT_ERROR_403_FORBIDDEN);
 			return;
 		}
 
+		// check if resource already exists
+		boolean exists = requestedFile.exists();
+		byte[] payloadData = bodyParser.getBinaryContent(inputStream, request.getContentLength());
+
 		if (request.getContentType().equals("image/png")) {
-//			if (requestedFile.getCanonicalPath().startsWith(servingDirectory.getCanonicalPath() + "\\upload\\")) {
-//				System.out.println("OK");
-//			}
 
 			// write or overwrite depending exist state
 			System.out.println("Attempting write...");
@@ -337,7 +327,7 @@ public class ClientThread implements Runnable {
 				out.write(payloadData);
 			}
 			catch (Exception e) {
-				System.out.println("Something went wrong: " + e.getMessage());
+				System.out.println("Failed to save file:  " + e.getMessage());
 				internalError = true;
 			}
 
@@ -353,7 +343,6 @@ public class ClientThread implements Runnable {
 				// send 201 created if new
 				sendHeaderResponse(request.getPathRequest(), StatusCode.SUCCESS_201_CREATED);
 			}
-			// 200 OK if replacing
 		}
 		else {
 			sendError(StatusCode.CLIENT_ERROR_415_UNSUPPORTED_MEDIA_TYPE);
@@ -364,6 +353,11 @@ public class ClientThread implements Runnable {
 		// TODO - Implement head
 	}
 
+	/**
+	 * send a 4XX/5XX error response
+	 * @param statusCode
+	 * @throws IOException
+	 */
 	private void sendError(StatusCode statusCode) throws IOException {
 		ResponseBuilder responseBuilder = new ResponseBuilder();
 		String body;
@@ -376,6 +370,11 @@ public class ClientThread implements Runnable {
 		outputStream.flush();
 	}
 
+	/**
+	 * sends a 302 redirect response which the browsers will go to
+	 * @param location
+	 * @throws IOException
+	 */
 	private void sendRedirect(String location) throws IOException {
 		ResponseBuilder responseBuilder = new ResponseBuilder();
 		String toWrite = responseBuilder.relocateResponse(location);
@@ -383,6 +382,12 @@ public class ClientThread implements Runnable {
 		outputStream.flush();
 	}
 
+	/**
+	 * sends a file (HTML page) to client
+	 * @param path
+	 * @param finalStatus
+	 * @throws IOException
+	 */
 	private void sendContentResponse(String path, StatusCode finalStatus) throws IOException {
 		/*
 		If you debug and look at the requested paths, you will see that the 'path' variable mixes (/) and (\), this still works fine with java.io.File.
@@ -400,6 +405,12 @@ public class ClientThread implements Runnable {
 		}
 	}
 
+	/**
+	 * sends a HTTP formatted header
+	 * @param URI resource
+	 * @param finalStatus
+	 * @throws IOException
+	 */
 	private void sendHeaderResponse(String contextFile, StatusCode finalStatus) throws IOException {
 		ResponseBuilder responseBuilder = new ResponseBuilder();
 		byte[] headerBytes = responseBuilder.generatePOSTPUTHeader("text/html", finalStatus, 0, contextFile).getBytes();
@@ -407,7 +418,13 @@ public class ClientThread implements Runnable {
 		outputStream.flush();
 	}
 
-	// Check if if someone tries to get out of the intended pathway, return true if OK, false if trying to access something they shouldn't.
+	/**
+	 * Check if if someone tries to get out of the intended pathway, return true if OK, false if trying to access something they shouldn't.
+	 * @param requestedFile
+	 * @param request
+	 * @return
+	 * @throws IOException
+	 */
 	private boolean isPathForbidden(File requestedFile, Request request) throws IOException {
 		// -------- 403 FORBIDDEN FUNCTIONALITY --------
 		if (request.getPathRequest().startsWith("/forbidden")) {
