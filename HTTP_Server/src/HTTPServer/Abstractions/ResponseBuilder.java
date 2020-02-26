@@ -13,89 +13,102 @@ import java.util.Date;
  */
 public class ResponseBuilder {
 
-    public final String CRLF = "\r\n";
+	public static final String CRLF = "\r\n";
 
-    public String generatePOSTPUTHeader(String contentType, StatusCode statusCode, long length, String contentLocation) {
-        StringBuilder header = new StringBuilder();
-        header.append("HTTP/1.1 ").append(statusCode.getCode()).append(CRLF);
-        header.append("Server: assignment 2 server" + CRLF);
-        header.append("Date: ").append(new Date()).append(CRLF);
-        if (statusCode == StatusCode.SUCCESS_201_CREATED) {
-            // Indicates URL of newly created item
-            header.append("Content-Location: ").append(contentLocation).append(CRLF);
-        }
-        else if (statusCode == StatusCode.SUCCESS_204_NO_CONTENT) {
-            // Indicated target of redirection
-            header.append("Content-Location ").append(contentLocation).append(CRLF);
-        }
-        else {
-            throw new IllegalArgumentException("StatusCode did not match header requiring a contentLocation field");
-        }
-        header.append("Content-Type: ").append(contentType).append(CRLF);
-        // TODO apparently this isn't needed?
-//        header.append("Content-Length: ").append(length).append(CRLF);
-        header.append(CRLF); // end of header is indicated by two CRLFs. We add the last one here.
-        return header.toString();
-    }
+	/**
+	 * Returns
+	 *
+	 * @param statusCode      StatusCode to return
+	 * @param contentLocation The location of the newly created or updated resource.
+	 * @return a generated header containing relevant response and header fields
+	 */
+	public String generatePOSTPUTHeader(StatusCode statusCode, String contentLocation) {
+		StringBuilder header = new StringBuilder();
+		header.append(getGenerics(statusCode, "text/html"));
+		switch (statusCode) {
+			case SUCCESS_201_CREATED:
+			case SUCCESS_204_NO_CONTENT:
+				header.append("Content-Location: ").append(contentLocation).append(CRLF);
+				break;
 
-    public String generateGenericHeader(String contentType, StatusCode statusCode, long length) {
-        StringBuilder header = new StringBuilder();
-        header.append("HTTP/1.1 ").append(statusCode.getCode()).append(CRLF);
-        header.append("Server: assignment 2 server" + CRLF);
-        header.append("Date: ").append(new Date()).append(CRLF);
-        header.append("Content-Type: ").append(contentType).append(CRLF);
-        header.append("Content-Length: ").append(length).append(CRLF);
-        header.append(CRLF); // end of header is indicated by two CRLFs. We add the last one here.
-        return header.toString();
-    }
+			default:
+				throw new IllegalArgumentException("StatusCode did not match header requiring a contentLocation field");
+		}
+		header.append(CRLF); // end of header is indicated by two CRLFs. We add the last one here.
+		return header.toString();
+	}
 
-    public String relocateResponse(String location) {
-        StringBuilder message = new StringBuilder();
-        message.append("HTTP/1.1 ").append(StatusCode.REDIRECTION_302_FOUND.getCode()).append(CRLF);
-        message.append("Location: " + location + CRLF);
-        message.append("Server: assignment 2 server" + CRLF);
-        message.append("Date: ").append(new Date()).append(CRLF);
-        message.append("Content-Type: text/html").append(CRLF);
-        message.append(CRLF);
+	/**
+	 * @param contentType Content type of body
+	 * @param statusCode  Status code to put in message
+	 * @param length      Byte length of body
+	 * @return
+	 */
+	public String generateGenericHeader(String contentType, StatusCode statusCode, long length) {
+		StringBuilder header = new StringBuilder();
+		header.append(getGenerics(statusCode, contentType));
+		header.append("Content-Length: ").append(length).append(CRLF);
+		header.append(CRLF); // end of header is indicated by two CRLFs. We add the last one here.
+		return header.toString();
+	}
 
-        message.append(generateHTMLMessage("moved to <a href=\"" + location + "\">"));
+	public String relocateResponse(String location) {
+		StringBuilder message = new StringBuilder();
+		message.append(getGenerics(StatusCode.REDIRECTION_302_FOUND, "text/html"));
+		message.append("Location: ").append(location).append(CRLF);
+		message.append(CRLF);
 
-        return message.toString();
-    }
+		message.append(generateHTMLMessage("moved to <a href=\"" + location + "\">"));
 
-    /**
-     * Returns a simple HTML document with a message
-     *
-     * @param message The massage to put into the basic HTML document
-     * @return a basic but syntax complete HTML document
-     */
-    public String generateHTMLMessage(String message) {
-        return "<!DOCTYPE html>\n" +
-                "<html lang=\"en\">\n" +
-                "<head>\n" +
-                "    <title>Webserver</title>\n" +
-                "</head>\n" +
-                "<body>\n" +
-                "<h1>" + message + "</h1>\n" +
-                "<a href=\"index.html\">Back to homepage</a>" +
-                "</body>\n" +
-                "</html>";
-    }
-    /**
-     * Returns a simple HTML document with provided body
-     *
-     * @param body The body to put into the basic HTML document
-     * @return a basic HTML document
-     */
-    public String generateHTMLwithBody(String body) {
-        return "<!DOCTYPE html>\n" +
-                "<html lang=\"en\">\n" +
-                "<head>\n" +
-                "    <title>Webserver</title>\n" +
-                "</head>\n" +
-                "<body>\n" +
-                body + "\n" +
-                "</body>\n" +
-                "</html>";
-    }
+		return message.toString();
+	}
+
+	/**
+	 * @param status      StatusCode to include in response line
+	 * @param contentType ContentType to include in the Content-Type: header
+	 * @return A String containing the generic headers
+	 */
+	private String getGenerics(StatusCode status, String contentType) {
+		return "HTTP/1.1 " + status.getCode() + CRLF +
+				"Server: Assignment 2 Server" + CRLF +
+				"Date: " + new Date() + CRLF +
+				"Content-Type: " + contentType + CRLF;
+	}
+
+	/**
+	 * Returns a simple HTML document with a message
+	 *
+	 * @param message The massage to put into the basic HTML document
+	 * @return a basic but syntax complete HTML document
+	 */
+	public String generateHTMLMessage(String message) {
+		return "<!DOCTYPE html>\n" +
+				"<html lang=\"en\">\n" +
+				"<head>\n" +
+				"    <title>Webserver</title>\n" +
+				"</head>\n" +
+				"<body>\n" +
+				"<h1>" + message + "</h1>\n" +
+				"<a href=\"index.html\">Back to homepage</a>" +
+				"</body>\n" +
+				"</html>";
+	}
+
+	/**
+	 * Returns a simple HTML document with provided body
+	 *
+	 * @param body The body to put into the basic HTML document
+	 * @return a basic HTML document
+	 */
+	public String generateHTMLwithBody(String body) {
+		return "<!DOCTYPE html>\n" +
+				"<html lang=\"en\">\n" +
+				"<head>\n" +
+				"    <title>Webserver</title>\n" +
+				"</head>\n" +
+				"<body>\n" +
+				body + "\n" +
+				"</body>\n" +
+				"</html>";
+	}
 }

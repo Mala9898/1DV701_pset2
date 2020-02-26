@@ -1,15 +1,16 @@
 package HTTPServer.Abstractions;
 
-/**
- * @author Stanislaw J. Malec  (sm223ak@student.lnu.se)
- * @author Love Samuelsson     (ls223qx@student.lnu.se)
- * 2020-02-15
- */
 
 // credit: inspired by https://howtodoinjava.com/java/enum/java-enum-string-example/
 
 /**
  * HTTP response codes
+ *
+ * @author Stanislaw J. Malec  (sm223ak@student.lnu.se)
+ * @author Love Samuelsson     (ls223qx@student.lnu.se)
+ * 2020-02-15
+ * <p>
+ * Simple enum defining some common response codes for simple code generation later in code.
  */
 public enum StatusCode {
     INFORMATIONAL_100_CONTINUE("100 Continue"),
