@@ -88,6 +88,11 @@ public class RequestParser {
 				else if (processing[0].equalsIgnoreCase("Content-Length")) {
 					toReturn.setContentLength(Integer.parseInt(processing[1].trim()));
 				}
+				else if(processing[0].equalsIgnoreCase("Expect")) {
+					if(processing[1].trim().equalsIgnoreCase("100-continue")) {
+						toReturn.setExpect100continue(true);
+					}
+				}
 				else {
 					System.out.println("Not supported: " + processing[0]);
 				}

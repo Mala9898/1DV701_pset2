@@ -18,6 +18,7 @@ public class Request {
 	private String method;
 	private String pathRequest;
 	private String httpVersion;
+	private boolean expect100continue = false;
 	private int contentLength;
 
 	public Request() {
@@ -190,5 +191,21 @@ public class Request {
 	 */
 	public void setContentLength(int contentLength) {
 		this.contentLength = contentLength;
+	}
+
+	/**
+	 * does client expect a 100 Continue response?
+	 * @return
+	 */
+	public boolean isExpect100continue() {
+		return expect100continue;
+	}
+
+	/**
+	 * does client expect a 100 Continue response?
+	 * @return
+	 */
+	public void setExpect100continue(boolean expect100continue) {
+		this.expect100continue = expect100continue;
 	}
 }
