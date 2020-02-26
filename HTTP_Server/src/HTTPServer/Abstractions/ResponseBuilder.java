@@ -36,7 +36,8 @@ public class ResponseBuilder {
             throw new IllegalArgumentException("StatusCode did not match header requiring a contentLocation field");
         }
         header.append("Content-Type: ").append(contentType).append(CRLF);
-        header.append("Content-Length: ").append(length).append(CRLF);
+        // TODO apparently this isn't needed?
+//        header.append("Content-Length: ").append(length).append(CRLF);
         header.append(CRLF); // end of header is indicated by two CRLFs. We add the last one here.
         return header.toString();
     }

@@ -421,7 +421,9 @@ public class ClientThread implements Runnable {
 	private void sendHeaderResponse(String contextFile, StatusCode finalStatus) throws IOException {
 		ResponseBuilder responseBuilder = new ResponseBuilder();
 		byte[] headerBytes = responseBuilder.generatePOSTPUTHeader("text/html", finalStatus, 0, contextFile).getBytes();
+		byte[] bodyLegacyMessage = ("<h1>"+finalStatus.getCode()+"</h1>\r\n").getBytes();
 		outputStream.write(headerBytes);
+		outputStream.write(bodyLegacyMessage);
 		outputStream.flush();
 	}
 
