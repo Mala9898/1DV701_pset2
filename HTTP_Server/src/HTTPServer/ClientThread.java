@@ -319,7 +319,9 @@ public class ClientThread implements Runnable {
 		}
 
 		if(request.isExpect100continue()) {
-			outputStream.write("HTTP/1.1 100 Continue\r\n".getBytes());
+			System.out.println("SENDING 100 continue");
+			outputStream.write("HTTP/1.1 100 Continue\r\n\r\n".getBytes());
+			outputStream.flush();
 		}
 
 		// check if resource already exists
