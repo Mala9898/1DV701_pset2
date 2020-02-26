@@ -318,6 +318,10 @@ public class ClientThread implements Runnable {
 			return;
 		}
 
+		if(request.isExpect100continue()) {
+			outputStream.write("HTTP/1.1 100 Continue\r\n".getBytes());
+		}
+
 		// check if resource already exists
 		boolean exists = requestedFile.exists();
 		byte[] payloadData = bodyParser.getBinaryContent(inputStream, request.getContentLength());
