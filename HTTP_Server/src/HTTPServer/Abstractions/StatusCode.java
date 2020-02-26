@@ -8,6 +8,9 @@ package HTTPServer.Abstractions;
 
 // credit: inspired by https://howtodoinjava.com/java/enum/java-enum-string-example/
 
+/**
+ * HTTP response codes
+ */
 public enum StatusCode {
     INFORMATIONAL_100_CONTINUE("100 Continue"),
     SUCCESS_200_OK("200 OK"),

@@ -33,6 +33,13 @@ public class RequestParser {
 	// Parses request, throws IllegalArgumentException if bad header format is found. IOException if something happens during receive.
 	// Returns a Request object that represents the received request.
 	// TODO - Reduce size and complexity of this method!
+
+	/**
+	 * Parse HTTP request
+	 * @param input
+	 * @return
+	 * @throws IOException
+	 */
 	public Request parseRequest(InputStream input) throws IOException {
 		// Gets a full request with lines split at CRLF. Blocks until CRLFx2 is received.
 		String[] requestLines = getRequest(input);
@@ -101,7 +108,12 @@ public class RequestParser {
 		return toReturn;
 	}
 
-	// Gets and splits an incoming request into a String[] array, split on CRLF. Blocks until CRLFx2 comes in.
+	/**
+	 * Gets and splits an incoming request into a String[] array, split on CRLF. Blocks until CRLFx2 comes in.
+	 * @param inputStream
+	 * @return
+	 * @throws IOException
+	 */
 	private String[] getRequest(InputStream inputStream) throws IOException {
 		// Holds all bytes
 		ByteArrayOutputStream bytes = new ByteArrayOutputStream();

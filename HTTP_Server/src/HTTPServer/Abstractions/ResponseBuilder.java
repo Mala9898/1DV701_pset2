@@ -19,6 +19,7 @@ public class ResponseBuilder {
 
     public static final String CRLF = "\r\n";
 
+
     public String generatePOSTPUTHeader(String contentType, StatusCode statusCode, long length, String contentLocation) {
         StringBuilder header = new StringBuilder();
         header.append("HTTP/1.1 ").append(statusCode.getCode()).append(CRLF);

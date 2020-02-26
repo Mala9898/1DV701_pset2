@@ -91,6 +91,10 @@ public class ClientThread implements Runnable {
 		System.out.println("Thread terminating");
 	}
 
+	/**
+	 * Handle HTTP request
+	 * @param request
+	 */
 	private void handleRequest(Request request) {
 		String method = request.getMethod();
 		try {
@@ -141,7 +145,11 @@ public class ClientThread implements Runnable {
 		}
 	}
 
-	// Processes a received GET Request, handles case where page is not found. Any IO exceptions are passed up to caller.
+	/**
+	 * Processes a received GET Request, handles case where page is not found. Any IO exceptions are passed up to caller.
+	 * @param request
+	 * @throws IOException
+	 */
 	private void processGet(Request request) throws IOException {
 		String requestedPath = servingDirectory.getAbsolutePath() + request.getPathRequest();
 		String finalPath = "";
@@ -220,8 +228,12 @@ public class ClientThread implements Runnable {
 
 	}
 
-	// Processes a received POST Request. Exceptions are thrown to caller
-	// We implement a /content REST API endpoint here
+	/**
+	 * Processes a received POST Request. Exceptions are thrown to caller
+	 * We implement a /content REST API endpoint here
+	 * @param request
+	 * @throws IOException
+	 */
 	private void processPost(Request request) throws IOException {
 		System.out.println("GOT POST REQUEST!");
 		System.out.printf("content-type={%s} boundary={%s} %n", request.getContentType(), request.getBoundary());
@@ -301,10 +313,12 @@ public class ClientThread implements Runnable {
 		}
 	}
 
-	// Processes a received PUT request. Exceptions are thrown to caller.
+	/**
+	 * Processes a received PUT request. Exceptions are thrown to caller.
+	 * @param request
+	 * @throws IOException
+	 */
 	private void processPut(Request request) throws IOException {
-
-		// https://stackoverflow.com/questions/797834/should-a-restful-put-operation-return-something
 
 		BodyParser bodyParser = new BodyParser();
 
@@ -358,6 +372,10 @@ public class ClientThread implements Runnable {
 		}
 	}
 
+	/**
+	 * Process HEAD (a head request without body, useful for crawlers)
+	 * @param request
+	 */
 	private void processHead(Request request) {
 		// TODO - Implement head
 	}
@@ -450,6 +468,7 @@ public class ClientThread implements Runnable {
 		}
 	}
 
+	// TODO can this be random?
 	/**
 	 * Given a file "file1.png" exists, this returns "file2.png"
 	 *

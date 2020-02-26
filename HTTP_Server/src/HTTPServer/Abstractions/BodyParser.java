@@ -21,6 +21,13 @@ public class BodyParser {
 
     }
 
+    /**
+     * get raw body bytes
+     * @param in
+     * @param contentLength
+     * @return
+     * @throws IOException
+     */
     public byte[] getBinaryContent(InputStream in, int contentLength) throws IOException {
         byte[] content = new byte[contentLength];
 
@@ -43,7 +50,14 @@ public class BodyParser {
         return contentBuffer.toByteArray();
     }
 
-    // TODO - This method is gigantic and pretty complex, desperately needs refactoring!
+    /**
+     * Get multipart objects
+     * @param inputStream
+     * @param contentLength
+     * @param _boundary
+     * @return
+     * @throws IOException
+     */
     public List<MultipartObject> getMultipartContent(InputStream inputStream, int contentLength, String _boundary) throws IOException {
 
         BufferedInputStream reader = new BufferedInputStream(inputStream);
