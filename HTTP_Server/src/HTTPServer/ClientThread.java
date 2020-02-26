@@ -249,6 +249,10 @@ public class ClientThread implements Runnable {
 			return;
 		}
 
+		// send 100 Continue if client requested it
+		if(request.isExpect100continue())
+			send100Continue();
+
 		BodyParser bodyParser = new BodyParser();
 		if (request.getContentType().equals("multipart/form-data")) {
 			// HERE WE HAVE ACCESS TO ALL THE INDIVIDUAL MULTIPART OBJECTS! (including, name, filename, payload etc.)
@@ -332,11 +336,9 @@ public class ClientThread implements Runnable {
 			return;
 		}
 
-		if(request.isExpect100continue()) {
-			System.out.println("SENDING 100 continue");
-			outputStream.write("HTTP/1.1 100 Continue\r\n\r\n".getBytes());
-			outputStream.flush();
-		}
+		// send 100 Continue if client requested it
+		if(request.isExpect100continue())
+			send100Continue();
 
 		// check if resource already exists
 		boolean exists = requestedFile.exists();
@@ -477,5 +479,14 @@ public class ClientThread implements Runnable {
 	 */
 	private String getIteratedFilename(String filename) {
 		return random.nextInt() + filename;
+	}
+
+	/**
+	 * sends 100 Continue
+	 */
+	private void send100Continue() throws IOException{
+		System.out.println("SENDING 100 continue");
+		outputStream.write("HTTP/1.1 100 Continue\r\n\r\n".getBytes());
+		outputStream.flush();
 	}
 }
