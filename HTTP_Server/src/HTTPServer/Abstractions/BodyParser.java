@@ -46,7 +46,6 @@ public class BodyParser {
             }
         }
         contentBuffer.close();
-        // TODO -- Throw exception if bytes read was less than expected content length within a suitable timeout.
         return contentBuffer.toByteArray();
     }
 
