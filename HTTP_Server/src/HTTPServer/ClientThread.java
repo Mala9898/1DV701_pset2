@@ -112,10 +112,6 @@ public class ClientThread implements Runnable {
 					break;
 
 				case "HEAD":
-					// TODO Implement this!
-					processHead(request);
-					break;
-
 				case "CONNECT":
 				case "DELETE":
 				case "OPTIONS":
@@ -271,7 +267,7 @@ public class ClientThread implements Runnable {
 
 					// check if resource already exists
 					if (requestedFile.exists()) {
-						multipartObject.setDispositionFilename(getIteratedFilename(multipartObject.getDispositionFilename()));
+						multipartObject.setDispositionFilename(getRandomFilename(multipartObject.getDispositionFilename()));
 					}
 
 					System.out.printf("saving {%s} %n", multipartObject.getDispositionFilename());
@@ -299,20 +295,6 @@ public class ClientThread implements Runnable {
 				System.err.println("Did not receive a single image");
 				sendError(StatusCode.CLIENT_ERROR_400_BAD_REQUEST);
 				return;
-			}
-		}
-		// ++++++ ONLY IF NEEDED ++++++++ we can assume POSTs are only over multipart/form-data <form>s?
-		// TODO - Evaluate what we should do with this, this is currently incomplete.
-		else if (request.getContentType().equals("image/png")) {
-			byte[] payloadData = bodyParser.getBinaryContent(inputStream, request.getContentLength());
-
-			System.out.println("writing a file...");
-			try (OutputStream out = new FileOutputStream(servingDirectory.getAbsolutePath() + "/content//FINALE.png")) {
-				out.write(payloadData);
-			}
-			catch (Exception e) {
-				System.out.println("Something went wrong: " + e.getMessage());
-				sendError(StatusCode.SERVER_ERROR_500_INTERNAL_SERVER_ERROR);
 			}
 		}
 	}
@@ -372,14 +354,6 @@ public class ClientThread implements Runnable {
 		else {
 			sendError(StatusCode.CLIENT_ERROR_415_UNSUPPORTED_MEDIA_TYPE);
 		}
-	}
-
-	/**
-	 * Process HEAD (a head request without body, useful for crawlers)
-	 * @param request
-	 */
-	private void processHead(Request request) {
-		// TODO - Implement head
 	}
 
 	/**
@@ -470,14 +444,13 @@ public class ClientThread implements Runnable {
 		}
 	}
 
-	// TODO can this be random?
 	/**
 	 * Given a file "file1.png" exists, this returns "file2.png"
 	 *
 	 * @param filename filename to be combined with number
 	 * @return a default random number along with the filename
 	 */
-	private String getIteratedFilename(String filename) {
+	private String getRandomFilename(String filename) {
 		return random.nextInt() + filename;
 	}
 

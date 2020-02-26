@@ -23,16 +23,12 @@ Connection: keep-alive
 
 <body starts here, if any>   | Body
  */
+
+/**
+ *  Parses request, throws IllegalArgumentException if bad header format is found. IOException if something happens during receive.
+ * 	 Returns a Request object that represents the received request.
+ */
 public class RequestParser {
-
-	public RequestParser() {
-		// Empty constructor
-		// TODO - Evaluate if this *really* needs to be an object.
-	}
-
-	// Parses request, throws IllegalArgumentException if bad header format is found. IOException if something happens during receive.
-	// Returns a Request object that represents the received request.
-	// TODO - Reduce size and complexity of this method!
 
 	/**
 	 * Parse HTTP request
@@ -65,7 +61,6 @@ public class RequestParser {
 				}
 			}
 			else {
-				// TODO User agent is split in a more sophisticated way, fix!
 				if (processing[0].equalsIgnoreCase("User-Agent")) {
 					toReturn.setUserAgent(processing[1].trim());
 				}
@@ -82,7 +77,6 @@ public class RequestParser {
 					Matcher matcher = pattern.matcher(line);
 
 					while (matcher.find()) {
-						System.out.printf("group count: %d %n", matcher.groupCount());
 						if (matcher.groupCount() == 1) {
 							toReturn.setContentType(matcher.group("contentType"));
 						}

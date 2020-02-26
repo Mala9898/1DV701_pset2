@@ -8,17 +8,12 @@ import java.util.Date;
  * 2020-02-15
  */
 
-
+/**
+ * Class that creates general HTTP constructs
+ */
 public class ResponseBuilder {
 
-    // this is now a an Object because TAs LOVE OBJECT ORIENTATION
-//    private ResponseBuilder() {
-//        // Private constructor to hide the implicit public constructor
-//    }
-    // TODO - Evaluate if this *really* needs to be an object.
-
-    public static final String CRLF = "\r\n";
-
+    public final String CRLF = "\r\n";
 
     public String generatePOSTPUTHeader(String contentType, StatusCode statusCode, long length, String contentLocation) {
         StringBuilder header = new StringBuilder();
