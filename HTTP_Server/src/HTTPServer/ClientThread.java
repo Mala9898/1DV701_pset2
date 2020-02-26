@@ -322,7 +322,7 @@ public class ClientThread implements Runnable {
 		boolean exists = requestedFile.exists();
 		byte[] payloadData = bodyParser.getBinaryContent(inputStream, request.getContentLength());
 
-		if (request.getContentType().equals("image/png")) {
+		if (destination.toString().endsWith(".png")) {
 
 			// write or overwrite depending exist state
 			System.out.println("Attempting write...");
