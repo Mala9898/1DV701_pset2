@@ -26,6 +26,7 @@ public class HTTPServer {
 		checkArgLength(args);
 		// Parses and sanity checks port number, terminates program if invalid
 		localPort = checkPort(args);
+    
 		// Sets working directory, terminates program if non-existent directory or not a child of the present working directory
 		setDir(args[1]);
 		// Starts main server loop
