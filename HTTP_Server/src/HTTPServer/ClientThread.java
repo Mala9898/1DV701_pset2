@@ -162,7 +162,7 @@ public class ClientThread implements Runnable {
 		}
 
 		// ----- hijack "/content" endpoint to serve a dynamically generated HTML page with listed content uploads
-		if (request.getPathRequest().equals("/content")) {
+		if (request.getPathRequest().equals("/content") || request.getPathRequest().equals("/content/")) {
 			File file = new File(servingDirectory.getAbsolutePath() + "/content");
 			String[] files = file.list();
 
@@ -232,7 +232,7 @@ public class ClientThread implements Runnable {
 		}
 
 		// We only serve one endpoint, send 403 if anything else.
-		if (!request.getPathRequest().equals("/content")) {
+		if (!request.getPathRequest().equals("/content") && !request.getPathRequest().equals("/content/")) {
 			sendError(StatusCode.CLIENT_ERROR_403_FORBIDDEN);
 			return;
 		}
