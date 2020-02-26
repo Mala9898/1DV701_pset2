@@ -6,14 +6,6 @@ import java.io.InputStream;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/**
- * @author Stanislaw J. Malec  (sm223ak@student.lnu.se)
- * @author Love Samuelsson     (ls223qx@student.lnu.se)
- * 2020-02-15
- * <p>
- * Receives, parses and handles errors when dealing with a HTTP Request.
- * Purpose of this class is to return a 'nicer' Request object that holds all relevant information about the HTTP request.
- */
 
 /* what a HTTP request looks like:
 
@@ -25,16 +17,22 @@ Connection: keep-alive
  */
 
 /**
- *  Parses request, throws IllegalArgumentException if bad header format is found. IOException if something happens during receive.
- * 	 Returns a Request object that represents the received request.
+ * @author Stanislaw J. Malec  (sm223ak@student.lnu.se)
+ * @author Love Samuelsson     (ls223qx@student.lnu.se)
+ * 2020-02-15
+ * <p>
+ * Receives, parses and handles errors when dealing with a HTTP Request.
+ * Purpose of this class is to return a 'nicer' Request object that holds all relevant information about the HTTP request.
  */
 public class RequestParser {
 
 	/**
-	 * Parse HTTP request
-	 * @param input
-	 * @return
-	 * @throws IOException
+	 * Gets and parses a HTTP request, neatly packs up data into an object
+	 *
+	 * @param input The input stream to pass to getRequest().
+	 * @return The HTTP request in a simpler to user object form with relevant setters and getters.
+	 * @throws IllegalArgumentException if request line was found to be malformed
+	 * @throws IOException Passes the IOException from getRequest() up to caller. (Stream failure)
 	 */
 	public Request parseRequest(InputStream input) throws IOException {
 		// Gets a full request with lines split at CRLF. Blocks until CRLFx2 is received.
@@ -104,9 +102,9 @@ public class RequestParser {
 
 	/**
 	 * Gets and splits an incoming request into a String[] array, split on CRLF. Blocks until CRLFx2 comes in.
-	 * @param inputStream
-	 * @return
-	 * @throws IOException
+	 * @param inputStream The stream where data is expected to be found
+	 * @return A string array where the lines are the request header lines found in a typical HTTP request (splits on CRLF)
+	 * @throws IOException If something goes wrong with the stream
 	 */
 	private String[] getRequest(InputStream inputStream) throws IOException {
 		// Holds all bytes

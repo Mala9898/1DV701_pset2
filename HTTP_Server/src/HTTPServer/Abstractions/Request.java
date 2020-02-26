@@ -187,7 +187,7 @@ public class Request {
 	}
 
 	/**
-	 * Content-Length
+	 * Set Content-Length field
 	 */
 	public void setContentLength(int contentLength) {
 		this.contentLength = contentLength;
@@ -195,15 +195,14 @@ public class Request {
 
 	/**
 	 * does client expect a 100 Continue response?
-	 * @return
+	 * @return true if expected, false if not
 	 */
 	public boolean isExpect100continue() {
 		return expect100continue;
 	}
 
 	/**
-	 * does client expect a 100 Continue response?
-	 * @return
+	 * Sets boolean relating to if client expects a 100 Continue before sending their payload
 	 */
 	public void setExpect100continue(boolean expect100continue) {
 		this.expect100continue = expect100continue;

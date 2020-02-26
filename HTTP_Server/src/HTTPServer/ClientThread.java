@@ -22,14 +22,13 @@ import java.util.Random;
 
 
 public class ClientThread implements Runnable {
-	private Random random = new Random();
 	private static final String INDEX_HTML = "/index.html";
 	private static final String INDEX_HTM = "/index.htm";
-	private Socket clientSocket;
-	private File servingDirectory;
-
 	OutputStream outputStream = null;
 	InputStream inputStream = null;
+	private Random random = new Random();
+	private Socket clientSocket;
+	private File servingDirectory;
 
 	// Constructor only needs serving directory and the socket where the HTTP connection is coming from.
 	public ClientThread(Socket clientSocket, File directory) {
@@ -92,8 +91,9 @@ public class ClientThread implements Runnable {
 	}
 
 	/**
-	 * Handle HTTP request
-	 * @param request
+	 * Handle HTTP request, switches between different cases of processing methods depending on HTTP method
+	 *
+	 * @param request The HTTP request in object form
 	 */
 	private void handleRequest(Request request) {
 		String method = request.getMethod();
@@ -143,8 +143,9 @@ public class ClientThread implements Runnable {
 
 	/**
 	 * Processes a received GET Request, handles case where page is not found. Any IO exceptions are passed up to caller.
-	 * @param request
-	 * @throws IOException
+	 *
+	 * @param request HTTP Request in object form
+	 * @throws IOException if something goes wrong during processing
 	 */
 	private void processGet(Request request) throws IOException {
 		String requestedPath = servingDirectory.getAbsolutePath() + request.getPathRequest();
@@ -177,7 +178,7 @@ public class ClientThread implements Runnable {
 			else {
 				message.append("<ul>\n");
 				for (String s : files) {
-					message.append(String.format("<li><a href=\"%s\">%s</a></li>", "/content/" + s, s).toString());
+					message.append(String.format("<li><a href=\"%s\">%s</a></li>", "/content/" + s, s));
 				}
 				message.append("</ul>\n");
 			}
@@ -227,8 +228,9 @@ public class ClientThread implements Runnable {
 	/**
 	 * Processes a received POST Request. Exceptions are thrown to caller
 	 * We implement a /content REST API endpoint here
-	 * @param request
-	 * @throws IOException
+	 *
+	 * @param request HTTP Request in object form
+	 * @throws IOException if something goes wrong during processing
 	 */
 	private void processPost(Request request) throws IOException {
 		System.out.println("GOT POST REQUEST!");
@@ -246,8 +248,9 @@ public class ClientThread implements Runnable {
 		}
 
 		// send 100 Continue if client requested it
-		if(request.isExpect100continue())
+		if (request.isExpect100continue()) {
 			send100Continue();
+		}
 
 		BodyParser bodyParser = new BodyParser();
 		if (request.getContentType().equals("multipart/form-data")) {
@@ -294,15 +297,15 @@ public class ClientThread implements Runnable {
 			else {
 				System.err.println("Did not receive a single image");
 				sendError(StatusCode.CLIENT_ERROR_400_BAD_REQUEST);
-				return;
 			}
 		}
 	}
 
 	/**
 	 * Processes a received PUT request. Exceptions are thrown to caller.
-	 * @param request
-	 * @throws IOException
+	 *
+	 * @param request HTTP Request in object form
+	 * @throws IOException if something goes wrong during processing
 	 */
 	private void processPut(Request request) throws IOException {
 
@@ -319,8 +322,9 @@ public class ClientThread implements Runnable {
 		}
 
 		// send 100 Continue if client requested it
-		if(request.isExpect100continue())
+		if (request.isExpect100continue()) {
 			send100Continue();
+		}
 
 		// check if resource already exists
 		boolean exists = requestedFile.exists();
@@ -358,8 +362,9 @@ public class ClientThread implements Runnable {
 
 	/**
 	 * send a 4XX/5XX error response
-	 * @param statusCode
-	 * @throws IOException
+	 *
+	 * @param statusCode Code to send
+	 * @throws IOException if we failed to send error because of stream issues
 	 */
 	private void sendError(StatusCode statusCode) throws IOException {
 		ResponseBuilder responseBuilder = new ResponseBuilder();
@@ -375,8 +380,9 @@ public class ClientThread implements Runnable {
 
 	/**
 	 * sends a 302 redirect response which the browsers will go to
-	 * @param location
-	 * @throws IOException
+	 *
+	 * @param location the location where the browser will end up
+	 * @throws IOException if stream failed
 	 */
 	private void sendRedirect(String location) throws IOException {
 		ResponseBuilder responseBuilder = new ResponseBuilder();
@@ -387,9 +393,10 @@ public class ClientThread implements Runnable {
 
 	/**
 	 * sends a file (HTML page) to client
-	 * @param path
-	 * @param finalStatus
-	 * @throws IOException
+	 *
+	 * @param path        Path to the file
+	 * @param finalStatus StatusCode to send with the response
+	 * @throws IOException If stream failed
 	 */
 	private void sendContentResponse(String path, StatusCode finalStatus) throws IOException {
 		/*
@@ -410,14 +417,15 @@ public class ClientThread implements Runnable {
 
 	/**
 	 * sends a HTTP formatted header
-	 * @param URI resource
-	 * @param finalStatus
-	 * @throws IOException
+	 *
+	 * @param contextFile URI Resource included in header response
+	 * @param finalStatus Status to send with this message
+	 * @throws IOException If stream failed
 	 */
 	private void sendHeaderResponse(String contextFile, StatusCode finalStatus) throws IOException {
 		ResponseBuilder responseBuilder = new ResponseBuilder();
-		byte[] headerBytes = responseBuilder.generatePOSTPUTHeader("text/html", finalStatus, 0, contextFile).getBytes();
-		byte[] bodyLegacyMessage = ("<h1>"+finalStatus.getCode()+"</h1>\r\n").getBytes();
+		byte[] headerBytes = responseBuilder.generatePOSTPUTHeader(finalStatus, contextFile).getBytes();
+		byte[] bodyLegacyMessage = ("<h1>" + finalStatus.getCode() + "</h1>\r\n").getBytes();
 		outputStream.write(headerBytes);
 		outputStream.write(bodyLegacyMessage);
 		outputStream.flush();
@@ -425,10 +433,11 @@ public class ClientThread implements Runnable {
 
 	/**
 	 * Check if if someone tries to get out of the intended pathway, return true if OK, false if trying to access something they shouldn't.
-	 * @param requestedFile
-	 * @param request
-	 * @return
-	 * @throws IOException
+	 *
+	 * @param requestedFile The file that was requested in the HTTP request.
+	 * @param request       The HTTP Request itself
+	 * @return true if forbidden, false otherwise
+	 * @throws IOException if a file error occurs
 	 */
 	private boolean isPathForbidden(File requestedFile, Request request) throws IOException {
 		// -------- 403 FORBIDDEN FUNCTIONALITY --------
@@ -455,9 +464,9 @@ public class ClientThread implements Runnable {
 	}
 
 	/**
-	 * sends 100 Continue
+	 * sends 100 Continue HTTP response
 	 */
-	private void send100Continue() throws IOException{
+	private void send100Continue() throws IOException {
 		System.out.println("SENDING 100 continue");
 		outputStream.write("HTTP/1.1 100 Continue\r\n\r\n".getBytes());
 		outputStream.flush();

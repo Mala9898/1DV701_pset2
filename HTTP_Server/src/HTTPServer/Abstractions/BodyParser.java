@@ -23,10 +23,11 @@ public class BodyParser {
 
     /**
      * get raw body bytes
-     * @param in
-     * @param contentLength
-     * @return
-     * @throws IOException
+     *
+     * @param in            InputStream where content is located
+     * @param contentLength Expected content length
+     * @return A byte array containing the data of the body.
+     * @throws IOException on read failure
      */
     public byte[] getBinaryContent(InputStream in, int contentLength) throws IOException {
         byte[] content = new byte[contentLength];

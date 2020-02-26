@@ -19,14 +19,14 @@ public class HTTPServer {
 	private static File servingDirectory;
 	private static int localPort;
 	private static final int UNIT16_MAX = 65535;
-	private static int expectedArguments = 2;
+	private static final int expectedArguments = 2;
 
 	public static void main(String[] args) {
 		// Terminates program if not 2
 		checkArgLength(args);
 		// Parses and sanity checks port number, terminates program if invalid
 		localPort = checkPort(args);
-
+    
 		// Sets working directory, terminates program if non-existent directory or not a child of the present working directory
 		setDir(args[1]);
 		// Starts main server loop
@@ -71,10 +71,6 @@ public class HTTPServer {
 			servingDirectory = new File(directory);
 			if (!servingDirectory.isDirectory()) {
 				printAndQuit("serving directory has to be a directory");
-			}
-			if (!servingDirectory.getCanonicalPath().startsWith(System.getProperty("user.dir"))) {
-				printAndQuit("serving directory has to be a child of the present working directory, pwd is: " + System.getProperty("user.dir") + "\n"
-						+ "Requested directory was: " + servingDirectory.getCanonicalPath());
 			}
 		}
 		catch (Exception e) {
@@ -143,7 +139,7 @@ public class HTTPServer {
 	private static void printAndQuit(String message) {
 		System.err.println(message);
 		System.err.println();
-		System.err.println("Usage: [port-number] [serving directory (in relation to present directory)]");
+		System.err.println("Usage: [port-number] [serving directory]");
 		System.exit(-1);
 	}
 
