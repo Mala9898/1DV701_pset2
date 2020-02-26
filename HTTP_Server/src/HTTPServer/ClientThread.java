@@ -228,11 +228,13 @@ public class ClientThread implements Runnable {
 
 		if (!request.isValidPOST()) {
 			sendError(StatusCode.CLIENT_ERROR_400_BAD_REQUEST);
+			return;
 		}
 
 		// We only serve one endpoint, send 403 if anything else.
 		if (!request.getPathRequest().equals("/content")) {
 			sendError(StatusCode.CLIENT_ERROR_403_FORBIDDEN);
+			return;
 		}
 
 		BodyParser bodyParser = new BodyParser();
@@ -280,6 +282,7 @@ public class ClientThread implements Runnable {
 			else {
 				System.err.println("Did not receive a single image");
 				sendError(StatusCode.CLIENT_ERROR_400_BAD_REQUEST);
+				return;
 			}
 		}
 		// ++++++ ONLY IF NEEDED ++++++++ we can assume POSTs are only over multipart/form-data <form>s?
