@@ -332,6 +332,7 @@ public class ClientThread implements Runnable {
 
 		if(payloadData.length != request.getContentLength()) {
 			sendError(StatusCode.CLIENT_ERROR_400_BAD_REQUEST);
+			return;
 		}
 
 		if (destination.toString().endsWith(".png")) {
