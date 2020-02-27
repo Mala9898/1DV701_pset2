@@ -20,13 +20,14 @@ public class HTTPServer {
 	private static int localPort;
 	private static final int UNIT16_MAX = 65535;
 	private static final int expectedArguments = 2;
+	private static final int SERVER_TIMEOUT_MS = 50000;
 
 	public static void main(String[] args) {
 		// Terminates program if not 2
 		checkArgLength(args);
 		// Parses and sanity checks port number, terminates program if invalid
 		localPort = checkPort(args);
-    
+
 		// Sets working directory, terminates program if non-existent directory or not a child of the present working directory
 		setDir(args[1]);
 		// Starts main server loop
@@ -50,7 +51,7 @@ public class HTTPServer {
 		while (true) {
 			try {
 				// handle client in a thread from the thread pool, serverSocket.accept() is blocking until a client connects.
-				executorService.submit(new ClientThread(serverSocket.accept(), servingDirectory));
+				executorService.submit(new ClientThread(serverSocket.accept(), servingDirectory, SERVER_TIMEOUT_MS));
 			}
 			catch (IOException e) {
 				System.out.println("General IO error: " + e.getMessage());

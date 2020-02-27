@@ -5,6 +5,7 @@ import HTTPServer.Multipart.MultipartObject;
 
 import java.io.*;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.net.URLConnection;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -31,25 +32,19 @@ public class ClientThread implements Runnable {
 	private File servingDirectory;
 
 	// Constructor only needs serving directory and the socket where the HTTP connection is coming from.
-	public ClientThread(Socket clientSocket, File directory) {
+	public ClientThread(Socket clientSocket, File directory, int timeout) throws IOException {
 		this.clientSocket = clientSocket;
 		this.servingDirectory = directory;
+		clientSocket.setSoTimeout(timeout);
+
+		outputStream = new BufferedOutputStream(clientSocket.getOutputStream());
+		inputStream = clientSocket.getInputStream();
 	}
 
 	@Override
 	public void run() {
 		// Failure boolean prevents request handling, kills thread prematurely.
 		boolean failure = false;
-
-		// Sets up InputStream and OutputStream, set failure boolean if this throws.
-		try {
-			outputStream = new BufferedOutputStream(clientSocket.getOutputStream());
-			inputStream = clientSocket.getInputStream();
-		}
-		catch (IOException e) {
-			System.err.println("Error when creating input or output stream: " + e.getMessage());
-			failure = true;
-		}
 
 		// Sets up request objects
 		RequestParser requestParser = new RequestParser();
@@ -65,11 +60,21 @@ public class ClientThread implements Runnable {
 				sendError(StatusCode.CLIENT_ERROR_400_BAD_REQUEST);
 			}
 			catch (IOException ex) {
-				System.err.println("Error sending failed: " + e.getMessage());
+				System.err.println("Error sending the error response: " + e.getMessage());
 			}
 			failure = true;
 		}
 		// RequestParser throws generic IO Error when it failed to receive.
+		catch (SocketTimeoutException e) {
+			System.err.println("Client did not manage to send data in time, terminating connection");
+			try {
+				sendError(StatusCode.CLIENT_ERROR_408_REQUEST_TIMEOUT);
+			}
+			catch (IOException ex) {
+				System.err.println("Error sending the error response: " + e.getMessage());
+			}
+			failure = true;
+		}
 		catch (Exception e) {
 			System.err.println("Generic IOException: " + e.getMessage());
 		}
@@ -128,6 +133,15 @@ public class ClientThread implements Runnable {
 					break;
 			}
 		}
+		catch (SocketTimeoutException e) {
+			System.err.println("Client did not manage to send data in time, terminating connection");
+			try {
+				sendError(StatusCode.CLIENT_ERROR_408_REQUEST_TIMEOUT);
+			}
+			catch (IOException ex) {
+				System.err.println("Failed to send error to client: " + e.getMessage());
+			}
+		}
 		// Any general unhandled exception that arises when attempting to process a request will send a 500 internal error to the client.
 		catch (IOException e) {
 			System.err.println("Error when processing request: " + e.getMessage());
@@ -136,7 +150,6 @@ public class ClientThread implements Runnable {
 			}
 			catch (IOException ex) {
 				System.err.println("Failed to send error to client: " + e.getMessage());
-				ex.printStackTrace();
 			}
 		}
 	}
