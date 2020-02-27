@@ -42,7 +42,7 @@ public class ResponseBuilder {
 	 * @param contentType Content type of body
 	 * @param statusCode  Status code to put in message
 	 * @param length      Byte length of body
-	 * @return
+	 * @return A string containing a generic HTTP header, ready to be sent.
 	 */
 	public String generateGenericHeader(String contentType, StatusCode statusCode, long length) {
 		StringBuilder header = new StringBuilder();
@@ -52,6 +52,10 @@ public class ResponseBuilder {
 		return header.toString();
 	}
 
+	/**
+	 * @param location The URI to relocate the client to
+	 * @return An HTTP redirect header, ready to be sent.
+	 */
 	public String relocateResponse(String location) {
 		StringBuilder message = new StringBuilder();
 		message.append(getGenerics(StatusCode.REDIRECTION_302_FOUND, "text/html"));
@@ -79,7 +83,7 @@ public class ResponseBuilder {
 	/**
 	 * Returns a simple HTML document with a message
 	 *
-	 * @param message The massage to put into the basic HTML document
+	 * @param message The massage to put into the basic HTML document inside an h1 tag
 	 * @return a basic but syntax complete HTML document
 	 */
 	public String generateHTMLMessage(String message) {
@@ -99,7 +103,7 @@ public class ResponseBuilder {
 	 * Returns a simple HTML document with provided body
 	 *
 	 * @param body The body to put into the basic HTML document
-	 * @return a basic HTML document
+	 * @return a basic HTML document wit the body defined by the body variable.
 	 */
 	public String generateHTMLwithBody(String body) {
 		return "<!DOCTYPE html>\n" +

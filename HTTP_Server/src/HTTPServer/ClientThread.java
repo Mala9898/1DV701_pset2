@@ -443,7 +443,7 @@ public class ClientThread implements Runnable {
 	private void sendContentResponse(String path, StatusCode finalStatus) throws IOException {
 		/*
 		If you debug and look at the requested paths, you will see that the 'path' variable mixes (/) and (\), this still works fine with java.io.File.
-		Even with a double // or double \\, it io.File filter this out and still works.
+		Even with a double // or double \\, it (io.File) filters this out and still works.
         */
 		ResponseBuilder responseBuilder = new ResponseBuilder();
 		File f = new File(path);

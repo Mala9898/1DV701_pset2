@@ -26,13 +26,18 @@ Connection: keep-alive
  */
 public class RequestParser {
 
+
+	public RequestParser() {
+		// Empty constructor, use this class as a generic object
+	}
+
 	/**
 	 * Gets and parses a HTTP request, neatly packs up data into an object
 	 *
 	 * @param input The input stream to pass to getRequest().
 	 * @return The HTTP request in a simpler to user object form with relevant setters and getters.
 	 * @throws IllegalArgumentException if request line was found to be malformed
-	 * @throws IOException Passes the IOException from getRequest() up to caller. (Stream failure)
+	 * @throws IOException              Passes the IOException from getRequest() up to caller. (Stream failure)
 	 */
 	public Request parseRequest(InputStream input) throws IOException {
 		// Gets a full request with lines split at CRLF. Blocks until CRLFx2 is received.
