@@ -180,6 +180,7 @@ public class ClientThread implements Runnable {
 		}
 
 		// ----- hijack "/content" endpoint to serve a dynamically generated HTML page with listed content uploads
+		// code below generates this dynamic page
 		if (request.getPathRequest().equals("/content") || request.getPathRequest().equals("/content/")) {
 			File file = new File(servingDirectory.getAbsolutePath() + "/content");
 			String[] files = file.list();
@@ -230,12 +231,11 @@ public class ClientThread implements Runnable {
 		// If previous if-block indicates that resource does not exist, set response to path 404.html and 404 header.
 		if (error404) {
 			sendError(StatusCode.CLIENT_ERROR_404_NOT_FOUND);
-			return;
 		}
-
-		// Otherwise, send requested content.
-		sendContentResponse(finalPath, finalStatus);
-
+		else {
+			// Otherwise, send requested content.
+			sendContentResponse(finalPath, finalStatus);
+		}
 	}
 
 	/**
@@ -449,9 +449,10 @@ public class ClientThread implements Runnable {
 		File f = new File(path);
 		System.out.println("Outputting to stream: " + f.getAbsolutePath());
 		byte[] headerBytes = (responseBuilder.generateGenericHeader(URLConnection.guessContentTypeFromName(f.getName()), finalStatus, f.length())).getBytes();
+		byte[] contentBytes = Files.readAllBytes(Paths.get(f.getAbsolutePath()));
 		if (f.canRead()) {
 			outputStream.write(headerBytes);
-			outputStream.write(Files.readAllBytes(Paths.get(f.getAbsolutePath())));
+			outputStream.write(contentBytes);
 			// flush() tells stream to send the bytes into the TCP stream
 			outputStream.flush();
 		}
