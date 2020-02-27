@@ -337,6 +337,13 @@ public class ClientThread implements Runnable {
 
 		if (destination.toString().endsWith(".png")) {
 
+			// we don't allow creating resources under nested directories
+			long dirCount = destination.toString().chars().filter(ch -> ch == '/').count();
+			if(dirCount != 2 ){
+				sendError(StatusCode.CLIENT_ERROR_403_FORBIDDEN);
+				return;
+			}
+
 			// write or overwrite depending exist state
 			System.out.println("Attempting write...");
 			try (OutputStream out = new FileOutputStream(requestedFile)) {
