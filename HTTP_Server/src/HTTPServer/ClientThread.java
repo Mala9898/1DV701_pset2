@@ -236,6 +236,7 @@ public class ClientThread implements Runnable {
 		System.out.println("GOT POST REQUEST!");
 		System.out.printf("content-type={%s} boundary={%s} %n", request.getContentType(), request.getBoundary());
 
+		// Simple validity check
 		if (!request.isValidPOST()) {
 			sendError(StatusCode.CLIENT_ERROR_400_BAD_REQUEST);
 			return;

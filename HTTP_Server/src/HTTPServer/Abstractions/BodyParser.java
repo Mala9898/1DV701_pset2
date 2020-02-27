@@ -18,7 +18,7 @@ import java.util.List;
 public class BodyParser {
 
     public BodyParser() {
-
+        // Empty constructor, use this class as generic object
     }
 
     /**

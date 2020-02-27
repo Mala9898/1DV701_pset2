@@ -1,12 +1,14 @@
 # 1DV701_pset2
 Simple java HTTP server
 
-## compiling
+Instructions assume that you are currently in the folder where this readme is located.
+
+## Compiling
 ```
 javac ./HTTPServer/HTTPServer.java
 ```
 
-## running
+## Running
 ```
 java -cp . HTTPServer.HTTPServer 5000 public/
 ```
@@ -21,5 +23,5 @@ curl POST request
 curl -F img=@tony.png http://192.168.56.101:5000/content
 ```
 
-see uploaded content by navigating to /content in browser
+To view uploaded content, navigate to the "/content" page in a browser.
 

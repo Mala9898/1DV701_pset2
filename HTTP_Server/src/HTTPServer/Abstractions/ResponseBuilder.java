@@ -72,7 +72,8 @@ public class ResponseBuilder {
 		return "HTTP/1.1 " + status.getCode() + CRLF +
 				"Server: Assignment 2 Server" + CRLF +
 				"Date: " + new Date() + CRLF +
-				"Content-Type: " + contentType + CRLF;
+				"Content-Type: " + contentType + CRLF +
+				"Connection: close" + CRLF;
 	}
 
 	/**
