@@ -236,6 +236,13 @@ public class ClientThread implements Runnable {
 		System.out.println("GOT POST REQUEST!");
 		System.out.printf("content-type={%s} boundary={%s} %n", request.getContentType(), request.getBoundary());
 
+		// Implementation of client error 411, length field is required when using POST/PUT
+		if (request.getContentLength() == null) {
+			sendError(StatusCode.CLIENT_ERROR_411_LENGTH_REQUIRED);
+			System.out.println("Length was expected but not parsed, sending 411 length required");
+			return;
+		}
+
 		// Simple validity check
 		if (!request.isValidPOST()) {
 			sendError(StatusCode.CLIENT_ERROR_400_BAD_REQUEST);
@@ -257,19 +264,21 @@ public class ClientThread implements Runnable {
 		if (request.getContentType().equals("multipart/form-data")) {
 			// HERE WE HAVE ACCESS TO ALL THE INDIVIDUAL MULTIPART OBJECTS! (including, name, filename, payload etc.)
 			// But we restrict ourselves to only one image upload :)
+
+			// Gets the multipart content
 			List<MultipartObject> payloadData = bodyParser.getMultipartContent(inputStream, request.getContentLength(), request.getBoundary());
 
 			if (payloadData.size() == 1) {
 				// get the first multipart/form-data object
 				MultipartObject multipartObject = payloadData.get(0);
 
-				// only save png image
+				// only save png image, otherwise send 415 media type unsupported
 				if (multipartObject.getDispositionContentType().equals("image/png")) {
 
 					Path destination = Paths.get(servingDirectory + "/content/" + multipartObject.getDispositionFilename());
 					File requestedFile = new File(String.valueOf(destination));
 
-					// check if resource already exists
+					// check if resource already exists, sets random filename preamble if this is the case
 					if (requestedFile.exists()) {
 						multipartObject.setDispositionFilename(getRandomFilename(multipartObject.getDispositionFilename()));
 					}
@@ -309,6 +318,12 @@ public class ClientThread implements Runnable {
 	 * @throws IOException if something goes wrong during processing
 	 */
 	private void processPut(Request request) throws IOException {
+		// Implementation of client error 411, length field is required when using POST/PUT
+		if (request.getContentLength() == null) {
+			sendError(StatusCode.CLIENT_ERROR_411_LENGTH_REQUIRED);
+			System.out.println("Length was expected but not parsed, sending 411 length required");
+			return;
+		}
 
 		BodyParser bodyParser = new BodyParser();
 
@@ -331,7 +346,8 @@ public class ClientThread implements Runnable {
 		boolean exists = requestedFile.exists();
 		byte[] payloadData = bodyParser.getBinaryContent(inputStream, request.getContentLength());
 
-		if(payloadData.length != request.getContentLength()) {
+		// Affirms that the payload data was equal to the content length, otherwise sends a bad request.
+		if (payloadData.length != request.getContentLength()) {
 			sendError(StatusCode.CLIENT_ERROR_400_BAD_REQUEST);
 			return;
 		}
@@ -340,7 +356,7 @@ public class ClientThread implements Runnable {
 
 			// we don't allow creating resources under nested directories
 			long dirCount = destination.toString().chars().filter(ch -> ch == '/').count();
-			if(dirCount != 2 ){
+			if (dirCount != 2) {
 				sendError(StatusCode.CLIENT_ERROR_403_FORBIDDEN);
 				return;
 			}

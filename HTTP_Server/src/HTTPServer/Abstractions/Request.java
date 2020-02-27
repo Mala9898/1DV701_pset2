@@ -19,7 +19,7 @@ public class Request {
 	private String pathRequest;
 	private String httpVersion;
 	private boolean expect100continue = false;
-	private int contentLength;
+	private Integer contentLength;
 
 	public Request() {
 		// Empty constructor, no variable initialization required.
@@ -182,7 +182,7 @@ public class Request {
 	 *
 	 * @return Request content length
 	 */
-	public int getContentLength() {
+	public Integer getContentLength() {
 		return contentLength;
 	}
 
