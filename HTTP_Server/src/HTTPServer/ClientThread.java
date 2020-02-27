@@ -381,12 +381,12 @@ public class ClientThread implements Runnable {
 	/**
 	 * sends a 302 redirect response which the browsers will go to
 	 *
-	 * @param location the location where the browser will end up
+	 * @param redirectLocation the location where the browser will end up
 	 * @throws IOException if stream failed
 	 */
-	private void sendRedirect(String location) throws IOException {
+	private void sendRedirect(String redirectLocation) throws IOException {
 		ResponseBuilder responseBuilder = new ResponseBuilder();
-		String toWrite = responseBuilder.relocateResponse(location);
+		String toWrite = responseBuilder.relocateResponse(redirectLocation);
 		outputStream.write(toWrite.getBytes());
 		outputStream.flush();
 	}
@@ -439,6 +439,7 @@ public class ClientThread implements Runnable {
 	 */
 	private boolean isPathForbidden(File requestedFile, Request request) throws IOException {
 		// -------- 403 FORBIDDEN FUNCTIONALITY --------
+		// Checks if client tried to access the /forbidden folder itself or any files inside it.
 		if (request.getPathRequest().startsWith("/forbidden")) {
 			return true;
 		}
