@@ -11,5 +11,20 @@
 	<p>Upload a PNG image here <a href="/upload">/upload</a></p>
 	<p>Test redirection <a href="/redirect">/redirect</a></p>
 	<p>Try accessing the forbidden directory <a href="/forbidden">/forbidden</a></p>
+
+	<br>
+
+	<h1>Instructions</h1>
+	<p>Instructions assume that you are currently in the folder where this readme is located.</p>
+	<h3 id="compiling">Compiling</h3>
+	<pre><code>javac .<span class="hljs-regexp">/HTTPServer/</span>HTTPServer.java
+	</code></pre><h3 id="running">Running</h3>
+		<pre><code>java -cp . HTTPServer<span class="hljs-selector-class">.HTTPServer</span> <span class="hljs-number">5000</span> public/
+	</code></pre><p>curl PUT request: update “/content/test1.png” resource</p>
+		<pre><code>curl http:<span class="hljs-regexp">//</span><span class="hljs-number">192.168</span>.<span class="hljs-number">56.101</span>:<span class="hljs-number">5000</span><span class="hljs-regexp">/content/</span>test1.png --upload-file test1.png
+	</code></pre><p>curl POST request</p>
+		<pre><code>curl -F img=<span class="hljs-meta">@tony</span>.png <span class="hljs-string">http:</span><span class="hljs-comment">//192.168.56.101:5000/content</span>
+	</code></pre><p>To view uploaded content, navigate to the &quot;/content&quot; page in a browser.</p>
+
 </body>
 </html>
