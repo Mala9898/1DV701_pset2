@@ -13,6 +13,8 @@ import java.util.regex.Pattern;
  * Metadata and content of an multipart object
  */
 public class MultipartObject {
+    private String name;
+    private String contentType;
 
     private byte[] header;
     private byte[] data;
