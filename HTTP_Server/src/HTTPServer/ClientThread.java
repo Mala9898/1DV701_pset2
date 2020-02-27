@@ -330,6 +330,10 @@ public class ClientThread implements Runnable {
 		boolean exists = requestedFile.exists();
 		byte[] payloadData = bodyParser.getBinaryContent(inputStream, request.getContentLength());
 
+		if(payloadData.length != request.getContentLength()) {
+			sendError(StatusCode.CLIENT_ERROR_400_BAD_REQUEST);
+		}
+
 		if (destination.toString().endsWith(".png")) {
 
 			// write or overwrite depending exist state
