@@ -180,7 +180,7 @@ public class ClientThread implements Runnable {
 		}
 
 		// ----- hijack "/content" endpoint to serve a dynamically generated HTML page with listed content uploads
-		// code below generates this dynamic page
+		// code below generates and sends this dynamic page
 		if (request.getPathRequest().equals("/content") || request.getPathRequest().equals("/content/")) {
 			File file = new File(servingDirectory.getAbsolutePath() + "/content");
 			String[] files = file.list();
@@ -298,14 +298,14 @@ public class ClientThread implements Runnable {
 
 					System.out.printf("saving {%s} %n", multipartObject.getDispositionFilename());
 
-					// Attempts to write file, sends 500 internal error if failed
+					// Attempts to write file, rethrows exception to be handled upwards if this breaks
 					try (OutputStream out = new FileOutputStream(servingDirectory.getAbsolutePath() + "/content/" + multipartObject.getDispositionFilename())) {
 						out.write(multipartObject.getData());
 					}
-					catch (Exception e) {
+					// rethrows on failure to be handled by handleRequest()
+					catch (IOException e) {
 						System.out.println("Couldn't save file: " + e.getMessage());
-						sendError(StatusCode.SERVER_ERROR_500_INTERNAL_SERVER_ERROR);
-						return;
+						throw e;
 					}
 					// Sends 201 created on success
 					sendHeaderResponse("/content/" + multipartObject.getDispositionFilename(), StatusCode.SUCCESS_201_CREATED);
@@ -340,7 +340,6 @@ public class ClientThread implements Runnable {
 
 		BodyParser bodyParser = new BodyParser();
 
-		boolean internalError = false;
 		Path destination = Paths.get(servingDirectory + request.getPathRequest());
 		File requestedFile = new File(String.valueOf(destination));
 
@@ -379,16 +378,12 @@ public class ClientThread implements Runnable {
 			try (OutputStream out = new FileOutputStream(requestedFile)) {
 				out.write(payloadData);
 			}
-			catch (Exception e) {
+			catch (IOException e) {
 				System.out.println("Failed to save file:  " + e.getMessage());
-				internalError = true;
+				throw e;
 			}
 
-			if (internalError) {
-				System.err.println("Internal Server Error");
-				sendError(StatusCode.SERVER_ERROR_500_INTERNAL_SERVER_ERROR);
-			}
-			else if (exists) {
+			if (exists) {
 				// send 204 no content if file existed
 				sendHeaderResponse(request.getPathRequest(), StatusCode.SUCCESS_204_NO_CONTENT);
 			}

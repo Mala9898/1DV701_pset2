@@ -3,9 +3,14 @@ Simple java HTTP server
 
 Instructions assume that you are currently in the folder where this readme is located.
 
-Supported file types for PUT and POST: .png
+Supported file types for PUT and POST: {.png}
 
-Anything else will send a 415 Unsupported Media to your client!!
+A PUT request takes a {.png} file directly.
+
+A POST request will specifically require the Content-Type: multipart/form-data, the file itself still needs to be a {.png}
+
+Anything else will send a 415 Unsupported Media to your client!
+
 
 ## Compiling
 ```
@@ -16,7 +21,7 @@ javac ./HTTPServer/HTTPServer.java
 ```
 java -cp . HTTPServer.HTTPServer 5000 public/
 ```
-
+## PUT and POST
 curl PUT request: update “/content/test1.png” resource
 ```
 curl http://192.168.56.101:5000/content/test1.png --upload-file test1.png
@@ -26,7 +31,6 @@ curl POST request
 ```
 curl -F img=@tony.png http://192.168.56.101:5000/content
 ```
-NOTE: Server specifically only supports multipart data for POST requests.
 
 ---
 

@@ -16,16 +16,27 @@
 
 	<h1>Instructions</h1>
 	<p>Supported file types for PUT and POST: .png</p>
+	<p>A PUT request takes a {.png} file directly.</p>
+	<p>A POST request will specifically require the Content-Type: multipart/form-data, the file itself still needs to be
+		a {.png}</p>
 	<p>Anything else will send a 415 Unsupported Media to your client!!</p>
 	<h2 id="compiling">Compiling</h2>
 	<pre><code>javac .<span class="hljs-regexp">/HTTPServer/</span>HTTPServer.java
-</code></pre><h2 id="running">Running</h2>
-	<pre><code>java -cp . HTTPServer<span class="hljs-selector-class">.HTTPServer</span> <span class="hljs-number">5000</span> public/
-</code></pre><p>curl PUT request: update /content/test1.png resource</p>
-	<pre><code>curl http:<span class="hljs-regexp">//</span><span class="hljs-number">192.168</span>.<span class="hljs-number">56.101</span>:<span class="hljs-number">5000</span><span class="hljs-regexp">/content/</span>test1.png --upload-file test1.png
-</code></pre><p>curl POST request</p>
-	<pre><code>curl -F img=<span class="hljs-meta">@tony</span>.png <span class="hljs-string">http:</span><span class="hljs-comment">//192.168.56.101:5000/content</span>
-</code></pre><p>NOTE: Server specifically only supports multipart data for POST requests.</p>
+</code></pre>
+	<h2 id="running">Running</h2>
+	<pre><code>java -cp . HTTPServer<span class="hljs-selector-class">.HTTPServer</span> <span
+			class="hljs-number">5000</span> public/
+</code></pre>
+	<p>curl PUT request: update /content/test1.png resource</p>
+	<pre><code>curl http:<span class="hljs-regexp">//</span><span class="hljs-number">192.168</span>.<span
+			class="hljs-number">56.101</span>:<span class="hljs-number">5000</span><span
+			class="hljs-regexp">/content/</span>test1.png --upload-file test1.png
+</code></pre>
+	<p>curl POST request</p>
+	<pre><code>curl -F img=<span class="hljs-meta">@tony</span>.png <span class="hljs-string">http:</span><span
+			class="hljs-comment">//192.168.56.101:5000/content</span>
+</code></pre>
+	<p>NOTE: Server specifically only supports multipart data for POST requests.</p>
 	<hr>
 	<p>To view uploaded content, navigate to the  <a href="/content">/content</a> page in a browser.</p>
 

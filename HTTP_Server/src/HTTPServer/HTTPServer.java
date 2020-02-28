@@ -13,14 +13,15 @@ import java.util.concurrent.ThreadPoolExecutor;
  * 2020-02-15
  */
 public class HTTPServer {
+	private static final int UNIT16_MAX = 65535;
+	private static final int EXPECTED_ARGUMENTS = 2;
+	private static final int SERVER_TIMEOUT_MS = 50000;
 
 	private static ThreadPoolExecutor executorService;
 	private static ServerSocket serverSocket;
 	private static File servingDirectory;
 	private static int localPort;
-	private static final int UNIT16_MAX = 65535;
-	private static final int expectedArguments = 2;
-	private static final int SERVER_TIMEOUT_MS = 50000;
+
 
 	public static void main(String[] args) {
 		// Terminates program if not 2
@@ -28,7 +29,7 @@ public class HTTPServer {
 		// Parses and sanity checks port number, terminates program if invalid
 		localPort = checkPort(args);
 
-		// Sets working directory, terminates program if non-existent directory or not a child of the present working directory
+		// Sets working directory, terminates program if non-existent directory
 		setDir(args[1]);
 		// Starts main server loop
 		startServer();
@@ -86,7 +87,7 @@ public class HTTPServer {
 	 * @param args Program arguments
 	 */
 	private static void checkArgLength(String[] args) {
-		if (args.length != expectedArguments) {
+		if (args.length != EXPECTED_ARGUMENTS) {
 			printAndQuit("Requires two arguments");
 		}
 	}

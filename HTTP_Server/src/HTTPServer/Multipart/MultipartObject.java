@@ -34,6 +34,7 @@ public class MultipartObject {
         String line = new String(header);
 
         // capture three groups: disposition (form-data), name, and filename.
+
         // ^ : start capturing at the start of each line
         // match "Content-Disposition:" literally
         // match an optional whitespace ([\s]{0,1} means match whitespace between 0 and 1 times (inclusive) )
