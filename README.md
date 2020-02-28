@@ -11,6 +11,8 @@ A POST request will specifically require the Content-Type: multipart/form-data, 
 
 Anything else will send a 415 Unsupported Media to your client!
 
+Do note that the index.html file is modified from the original, the testa2.py script will show an error regarding the index page not being the same as the local copy. This is normal!
+
 
 ## Compiling
 ```
