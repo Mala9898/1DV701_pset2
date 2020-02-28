@@ -85,6 +85,17 @@ public class ClientThread implements Runnable {
 			handleRequest(request);
 		}
 
+		/*
+		 *	src: https://stackoverflow.com/questions/17437950/when-does-an-http-1-0-server-close-the-connection
+		 *
+		 * "In HTTP 1.1, the server does not close the connection after sending the response UNLESS:
+		 * the client sent a Connection: close request header, or the server sent a Connection: close response header.
+		 * If such a response header exists, the client must close its end of the connection after receiving the response."
+		 *
+		 * In this server, we send the Connection: close header as part of the generic message generation.
+		 * That is why we close the connection here.
+		 */
+
 		// Attempts to close the socket
 		try {
 			clientSocket.close();
