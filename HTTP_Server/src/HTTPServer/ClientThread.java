@@ -383,8 +383,10 @@ public class ClientThread implements Runnable {
 		if (destination.toString().endsWith(".png")) {
 
 			// we don't allow creating resources under nested directories, checks the amount of backslashes in the converted path
-			long dirCount = destination.toString().chars().filter(ch -> ch == '\\').count();
-			if (dirCount != 2) {
+			// FOR SOME REASON WINDOWS AND MAC HAVE DIFFERENT REPRESENTATIONS OF FORWARD SLASHES. THIS TAKES CARE OF BOTH.
+			long dirCountWindows = destination.toString().chars().filter(ch -> ch == '\\').count();
+			long dirCountUnix = destination.toString().chars().filter(ch -> ch == '/').count();
+			if (dirCountWindows != 2 && dirCountUnix != 2) {
 				sendError(StatusCode.CLIENT_ERROR_403_FORBIDDEN);
 				return;
 			}
