@@ -123,7 +123,6 @@ public class BodyParser {
                                 headerBuffer.write(toCopy);
                             }
 
-                            byte[] headerBytes = headerBuffer.toByteArray();
 //							System.out.printf("header: {%s} %n", new String(headerBytes, 0, headerBytes.length));
 
                             continue;

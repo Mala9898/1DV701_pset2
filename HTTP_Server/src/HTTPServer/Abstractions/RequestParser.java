@@ -76,6 +76,8 @@ public class RequestParser {
 				else if (processing[0].equalsIgnoreCase("Content-Type")) {
 					// Special multipart processing
 					// Request-Line   = Method SP Request-URI SP HTTP-Version CRLF
+					// REGEX: capture values of "Content-Type" and "boundary" with regex capture groups.
+					// 		  More in depth explanation is on MultipartObject.java line 36
 					Pattern pattern = Pattern.compile("^Content-Type:[\\s]{0,1}(?<contentType>[\\w\\/-]+)(?:\\s*;\\s*boundary\\s*=\\s*\"?(?<boundary>[\\w-]*))?[\" ]?$", Pattern.MULTILINE | Pattern.CASE_INSENSITIVE);
 					Matcher matcher = pattern.matcher(line);
 
