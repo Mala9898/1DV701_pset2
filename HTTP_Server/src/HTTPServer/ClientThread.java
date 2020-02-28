@@ -325,7 +325,7 @@ public class ClientThread implements Runnable {
 					System.out.printf("sent RESPONSE! {%s} %n", "/content/" + multipartObject.getDispositionFilename());
 				}
 				else {
-					// If content-type was unexpected, send 415.
+					// If content-type inside the multipart data was unexpected, send 415.
 					sendError(StatusCode.CLIENT_ERROR_415_UNSUPPORTED_MEDIA_TYPE);
 				}
 			}
@@ -333,6 +333,10 @@ public class ClientThread implements Runnable {
 				System.err.println("Did not receive a single image");
 				sendError(StatusCode.CLIENT_ERROR_400_BAD_REQUEST);
 			}
+		}
+		else {
+			// Sends 415 if media type was not multipart/form-data.
+			sendError(StatusCode.CLIENT_ERROR_415_UNSUPPORTED_MEDIA_TYPE);
 		}
 	}
 
@@ -378,8 +382,8 @@ public class ClientThread implements Runnable {
 
 		if (destination.toString().endsWith(".png")) {
 
-			// we don't allow creating resources under nested directories
-			long dirCount = destination.toString().chars().filter(ch -> ch == '/').count();
+			// we don't allow creating resources under nested directories, checks the amount of backslashes in the converted path
+			long dirCount = destination.toString().chars().filter(ch -> ch == '\\').count();
 			if (dirCount != 2) {
 				sendError(StatusCode.CLIENT_ERROR_403_FORBIDDEN);
 				return;
@@ -403,6 +407,9 @@ public class ClientThread implements Runnable {
 				// send 201 created if new
 				sendHeaderResponse(request.getPathRequest(), StatusCode.SUCCESS_201_CREATED);
 			}
+		}
+		else if (destination.endsWith("content")) {
+			sendError(StatusCode.CLIENT_ERROR_403_FORBIDDEN);
 		}
 		else {
 			sendError(StatusCode.CLIENT_ERROR_415_UNSUPPORTED_MEDIA_TYPE);
