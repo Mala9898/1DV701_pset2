@@ -26,6 +26,7 @@ public enum StatusCode {
     CLIENT_ERROR_401_UNAUTHORIZED("401 Unauthorized"),
     CLIENT_ERROR_403_FORBIDDEN("403 Forbidden"),
     CLIENT_ERROR_404_NOT_FOUND("404 Not Found"),
+    CLIENT_ERROR_405_NOT_ALLOWED("405 Method Not Allowed"),
     CLIENT_ERROR_408_REQUEST_TIMEOUT("408 Request Timeout"),
     CLIENT_ERROR_411_LENGTH_REQUIRED("411 Length Required"),
     CLIENT_ERROR_413_PAYLOAD_TOO_LARGE("413 Payload Too Large"),

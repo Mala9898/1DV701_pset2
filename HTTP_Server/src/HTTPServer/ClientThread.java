@@ -122,13 +122,14 @@ public class ClientThread implements Runnable {
 				case "OPTIONS":
 				case "TRACE":
 				case "PATCH":
-					// Unimplemented requests for these methods sends a 501 to client
-					sendError(StatusCode.SERVER_ERROR_501_NOT_IMPLEMENTED);
+					// Unimplemented requests for these methods sends a 405 to client
+					sendError(StatusCode.CLIENT_ERROR_405_NOT_ALLOWED);
 					break;
 
 				default:
-					// Method requests not part of HTTP/1.1 will send a 400 bad request to client
-					sendError(StatusCode.CLIENT_ERROR_400_BAD_REQUEST);
+					// src: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/501
+					// Method requests not part of HTTP/1.1 will send a 501 not implemented, which appears to be the proper response for an unknown method
+					sendError(StatusCode.SERVER_ERROR_501_NOT_IMPLEMENTED);
 					System.out.println("Not supported");
 					break;
 			}
