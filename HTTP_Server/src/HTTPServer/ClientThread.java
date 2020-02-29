@@ -194,23 +194,15 @@ public class ClientThread implements Runnable {
 		// ----- hijack "/content" endpoint to serve a dynamically generated HTML page with listed content uploads
 		// code below generates and sends this dynamic page
 		if (request.getPathRequest().equals("/content") || request.getPathRequest().equals("/content/")) {
-			File file = new File(servingDirectory.getAbsolutePath() + "/content");
-			String[] files = file.list();
+			// Generates the content body, puts it into a string
+			String messageBody = generateContentPage("/content");
 
-			StringBuilder message = new StringBuilder();
-			if (files.length <= 0) {
-				message.append("<p>No content currently exists on the server.</p>");
-			}
-			else {
-				message.append("<ul>\n");
-				for (String s : files) {
-					message.append(String.format("<li><a href=\"%s\">%s</a></li>", "/content/" + s, s));
-				}
-				message.append("</ul>\n");
-			}
+			// Constructs the response with our custom body
 			ResponseBuilder responseBuilder = new ResponseBuilder();
-			String body = responseBuilder.generateHTMLwithBody(message.toString());
+			String body = responseBuilder.generateHTMLwithBody(messageBody);
 			String header = responseBuilder.generateGenericHeader("text/html", StatusCode.SUCCESS_200_OK, body.length());
+
+			// Sends the response
 			outputStream.write(header.getBytes());
 			outputStream.write(body.getBytes());
 			outputStream.flush();
@@ -528,5 +520,36 @@ public class ClientThread implements Runnable {
 		System.out.println("SENDING 100 continue");
 		outputStream.write("HTTP/1.1 100 Continue\r\n\r\n".getBytes());
 		outputStream.flush();
+	}
+
+	/**
+	 * Generates a dynamic content page based on the contents of the folder passed as an input argument.
+	 *
+	 * @param subDir A subdirectory of the serving directory
+	 * @return A string containing a basic HTML body with links to every resource in the folder.
+	 * @throws FileNotFoundException if folder didn't exist
+	 */
+	private String generateContentPage(String subDir) throws FileNotFoundException {
+		File file = new File(servingDirectory.getAbsolutePath() + subDir);
+		String[] files = file.list();
+		// if file.list() returns null, content wasn't found or something happened
+		if (files == null) {
+			throw new FileNotFoundException("Unable to get content directory");
+		}
+
+		// dynamically generated html page
+		// Builds a string that represents a basic HTML body containing links to resources inside the /content folder
+		StringBuilder message = new StringBuilder();
+		if (files.length <= 0) {
+			message.append("<p>No content currently exists on the server.</p>");
+		}
+		else {
+			message.append("<ul>\n");
+			for (String s : files) {
+				message.append(String.format("<li><a href=\"%s\">%s</a></li>", "/content/" + s, s));
+			}
+			message.append("</ul>\n");
+		}
+		return message.toString();
 	}
 }

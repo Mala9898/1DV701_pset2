@@ -15,6 +15,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 public class HTTPServer {
 	private static final int UNIT16_MAX = 65535;
 	private static final int EXPECTED_ARGUMENTS = 2;
+	// default server timeout for requests set to 50s, an InputStream.read() will timeout and throw SocketTimeoutException after 50s.
 	private static final int SERVER_TIMEOUT_MS = 50000;
 
 	private static ThreadPoolExecutor executorService;
