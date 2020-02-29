@@ -22,6 +22,7 @@ public class HTTPServer {
 	private static ServerSocket serverSocket;
 	private static File servingDirectory;
 	private static int localPort;
+	private static String fullDirectoryPath;
 
 
 	public static void main(String[] args) {
@@ -30,8 +31,9 @@ public class HTTPServer {
 		// Parses and sanity checks port number, terminates program if invalid
 		localPort = checkPort(args);
 
-		// Sets working directory, terminates program if non-existent directory
-		setDir(args[1]);
+		// Sets working directory and returns canonical path, terminates program if non-existent directory
+		fullDirectoryPath = setDir(args[1]);
+		System.out.println("Server starting...");
 		// Starts main server loop
 		startServer();
 	}
@@ -49,7 +51,8 @@ public class HTTPServer {
 			System.err.println("could not initialize socket: " + e.getMessage());
 			System.exit(1);
 		}
-
+		System.out.println("Listening on port: (" + localPort + ")");
+		System.out.println("Using serving directory: (" + fullDirectoryPath + ")");
 		while (true) {
 			try {
 				// handle client in a thread from the thread pool, serverSocket.accept() is blocking until a client connects.
@@ -69,17 +72,20 @@ public class HTTPServer {
 	 *
 	 * @param directory directory to serve files from
 	 */
-	private static void setDir(String directory) {
+	private static String setDir(String directory) {
+		String fullPath = null;
 		try {
 			servingDirectory = new File(directory);
 			if (!servingDirectory.isDirectory()) {
 				printAndQuit("serving directory has to be a directory");
 			}
+			fullPath = servingDirectory.getCanonicalPath();
 		}
 		catch (Exception e) {
 			System.err.println("IO exception occurred while reading directory: " + e.getMessage());
 			System.exit(1);
 		}
+		return fullPath;
 	}
 
 	/**
