@@ -262,7 +262,7 @@ public class ClientThread implements Runnable {
 			// But we restrict ourselves to only one image upload :)
 
 			// Gets the multipart content
-			List<MultipartObject> payloadData = bodyParser.getMultipartContent(inputStream, request.getContentLength(), request.getBoundary());
+			List<MultipartObject> payloadData = bodyParser.getMultipartContent(inputStream, request.getBoundary());
 
 			if (payloadData.size() == 1) {
 				// get the first multipart/form-data object

@@ -51,14 +51,13 @@ public class BodyParser {
     }
 
     /**
-     * Get multipart objects
-     * @param inputStream
-     * @param contentLength
+     * Get multipart objects from a stream. Runs in O(n) time.
+     * @param inputStream   incoming data
      * @param _boundary
      * @return
      * @throws IOException
      */
-    public List<MultipartObject> getMultipartContent(InputStream inputStream, int contentLength, String _boundary) throws IOException {
+    public List<MultipartObject> getMultipartContent(InputStream inputStream, String _boundary) throws IOException {
 
         BufferedInputStream reader = new BufferedInputStream(inputStream);
 
@@ -94,7 +93,6 @@ public class BodyParser {
                     matchCounter += 1;
                     if (matchCounter == boundary.length()) {
                         isPart = true;
-//						System.out.println("Starting boundary detected!");
                         continue;
                     }
                 }
@@ -114,7 +112,6 @@ public class BodyParser {
                         partPayloadStartMatchCounter += 1;
                         if (partPayloadStartMatchCounter == payloadStart.length()) {
                             isPartPayload = true;
-//							System.out.println("Start of part payload detected!");
 
                             int endCondition = tempHeaderBuffer.position() - 4;
                             tempHeaderBuffer.flip();
@@ -122,8 +119,6 @@ public class BodyParser {
                                 byte toCopy = tempHeaderBuffer.get();
                                 headerBuffer.write(toCopy);
                             }
-
-//							System.out.printf("header: {%s} %n", new String(headerBytes, 0, headerBytes.length));
 
                             continue;
                         }
@@ -142,14 +137,11 @@ public class BodyParser {
                     // here -> --XYZ|
                     if (partPayloadEndMatchCounter < boundarySTART.length()) {
                         if (readByte == (int) boundarySTART.charAt(partPayloadEndMatchCounter)) {
-//                        boundaryCheckingMode = true;
                             partPayloadEndMatchCounter += 1;
 
                             // --XYZ detected: enter boundary mode
                             if (partPayloadEndMatchCounter == boundarySTART.length()) {
                                 boundaryCheckingMode = true;
-
-//								System.out.println("--XYZ detected ... entering boundary checking mode");
                                 continue;
                             }
                             else {
@@ -170,7 +162,6 @@ public class BodyParser {
                                 canOnlyBeEnd = true;
                                 boundaryEndPartCounter += 1;
                                 if (boundaryEndPartCounter == boundaryEndPart.length()) {
-//									System.out.println("END of multipart found");
                                     boundaryCheckingMode = false;
                                     tempBuffer = ByteBuffer.allocate(contentBufferLength);
                                     partPayloadEndMatchCounter = 0;
@@ -193,7 +184,6 @@ public class BodyParser {
                                 if (readByte == (int) boundaryAnotherPart.charAt(boundaryAnotherPartCounter)) {
                                     boundaryAnotherPartCounter += 1;
                                     if (boundaryAnotherPartCounter == boundaryAnotherPart.length()) {
-//										System.out.println("another multipart section found");
                                         boundaryCheckingMode = false;
                                         tempBuffer = ByteBuffer.allocate(contentBufferLength);
                                         partPayloadEndMatchCounter = 0;
