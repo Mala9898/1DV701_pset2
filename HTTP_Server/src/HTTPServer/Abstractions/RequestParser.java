@@ -100,9 +100,6 @@ public class RequestParser {
 						toReturn.setExpect100continue(true);
 					}
 				}
-				else {
-					System.out.println("Not supported: " + processing[0]);
-				}
 			}
 		}
 		return toReturn;
