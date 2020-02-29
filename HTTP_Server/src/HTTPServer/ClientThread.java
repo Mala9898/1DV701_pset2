@@ -234,8 +234,8 @@ public class ClientThread implements Runnable {
 
 		// Implementation of client error 411, length field is required when using POST/PUT
 		if (request.getContentLength() == null) {
-			sendError(StatusCode.CLIENT_ERROR_411_LENGTH_REQUIRED);
 			System.out.println("Length was expected but not parsed, sending 411 length required");
+			sendError(StatusCode.CLIENT_ERROR_411_LENGTH_REQUIRED);
 			return;
 		}
 
@@ -301,7 +301,7 @@ public class ClientThread implements Runnable {
 				}
 			}
 			else {
-				System.err.println("Did not receive a single image");
+				System.err.println("Multipart data contained several payloads, unsupported!");
 				sendError(StatusCode.CLIENT_ERROR_400_BAD_REQUEST);
 			}
 		}
@@ -320,8 +320,8 @@ public class ClientThread implements Runnable {
 	private void processPut(Request request) throws IOException {
 		// Implementation of client error 411, length field is required when using POST/PUT
 		if (request.getContentLength() == null) {
-			sendError(StatusCode.CLIENT_ERROR_411_LENGTH_REQUIRED);
 			System.out.println("Length was expected but not parsed, sending 411 length required");
+			sendError(StatusCode.CLIENT_ERROR_411_LENGTH_REQUIRED);
 			return;
 		}
 
