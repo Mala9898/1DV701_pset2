@@ -52,10 +52,11 @@ public class BodyParser {
 
     /**
      * Get multipart objects from a stream. Runs in O(n) time.
-     * @param inputStream   incoming data
-     * @param _boundary
-     * @return
-     * @throws IOException
+     *
+     * @param inputStream incoming data
+     * @param _boundary   Starting boundary
+     * @return A list containing the multipart payloads with each payload stored in a MultipartObject
+     * @throws IOException On IO Error
      */
     public List<MultipartObject> getMultipartContent(InputStream inputStream, String _boundary) throws IOException {
 
@@ -119,12 +120,8 @@ public class BodyParser {
                                 byte toCopy = tempHeaderBuffer.get();
                                 headerBuffer.write(toCopy);
                             }
-
-                            continue;
                         }
-                        else {
-                            continue;
-                        }
+                        continue;
                     }
                     else {
                         partPayloadStartMatchCounter = 0;
@@ -142,13 +139,12 @@ public class BodyParser {
                             // --XYZ detected: enter boundary mode
                             if (partPayloadEndMatchCounter == boundarySTART.length()) {
                                 boundaryCheckingMode = true;
-                                continue;
                             }
                             else {
                                 // save byte to a temporary buffer in case it turns out to be a false alarm
                                 tempBuffer.put((byte) readByte);
-                                continue;
                             }
+                            continue;
                         }
                     }
                     // --XYZ| <-- here
@@ -200,7 +196,6 @@ public class BodyParser {
                                         tempHeaderBuffer = ByteBuffer.allocate(1024);
 
                                         contentBuffer.reset();
-                                        continue;
                                     }
                                     continue;
                                 }

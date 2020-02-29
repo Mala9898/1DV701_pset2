@@ -2,14 +2,13 @@ package HTTPServer.Abstractions;
 
 import java.util.Date;
 
-/**
- * @author Stanislaw J. Malec  (sm223ak@student.lnu.se)
- * @author Love Samuelsson     (ls223qx@student.lnu.se)
- * 2020-02-15
- */
 
 /**
  * Class that creates general HTTP constructs
+ *
+ * @author Stanislaw J. Malec  (sm223ak@student.lnu.se)
+ * @author Love Samuelsson     (ls223qx@student.lnu.se)
+ * 2020-02-15
  */
 public class ResponseBuilder {
 

@@ -3,20 +3,19 @@ package HTTPServer.Multipart;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/**
- * @author: Stanislaw J. Malec  (sm223ak@student.lnu.se)
- * @author: Love Samuelsson     (ls223qx@student.lnu.se)
- * 2020-02-20
- */
+
 
 /**
  * Metadata and content of an multipart object
+ *
+ * @author Stanislaw J. Malec  (sm223ak@student.lnu.se)
+ * @author Love Samuelsson     (ls223qx@student.lnu.se)
+ * 2020-02-20
  */
 public class MultipartObject {
     private String name;
     private String contentType;
 
-    private byte[] header;
     private byte[] data;
 
     private boolean hasDisposition = false;
@@ -29,8 +28,6 @@ public class MultipartObject {
 
     public MultipartObject(byte[] header, byte[] data) {
         this.data = data;
-        this.header = header;
-
         String line = new String(header);
 
         // capture three groups: disposition (form-data), name, and filename.
@@ -44,7 +41,7 @@ public class MultipartObject {
         // Two other capture groups are defined in a similar way.
         // Pattern.MULTILINE is used to enable "^" start of line and  "$" end of line anchoring
         // Pattern.CASE_INSENSITIVE because header field names are case insensitive according to RFC7230. This means that "CoNtEnT-TyPe" is valid :)
-        Pattern pattern = Pattern.compile( "^Content-Disposition:[\\s]{0,1}(?<disposition>[\\w\\/-]+)(?:;\\s{0,1}name=\"(?<name>[^\\\"]+)\")(?:;\\s{0,1}filename=\"(?<filename>[^\\\"]+)\")?", Pattern.MULTILINE | Pattern.CASE_INSENSITIVE);
+        Pattern pattern = Pattern.compile("^Content-Disposition:[\\s]?(?<disposition>[\\w/-]+)(?:;\\s?name=\"(?<name>[^\"]+)\")(?:;\\s?filename=\"(?<filename>[^\"]+)\")?", Pattern.MULTILINE | Pattern.CASE_INSENSITIVE);
         Matcher matcher = pattern.matcher(line);
 
         while (matcher.find()) {
@@ -65,7 +62,7 @@ public class MultipartObject {
         }
 
         // capture Content-Type value in a regex group.
-        Pattern pattern2 = Pattern.compile( "^Content-Type:\\s{0,1}(?<contentType>[\\w\\/]+)", Pattern.MULTILINE | Pattern.CASE_INSENSITIVE);
+        Pattern pattern2 = Pattern.compile("^Content-Type:\\s?(?<contentType>[\\w/]+)", Pattern.MULTILINE | Pattern.CASE_INSENSITIVE);
         Matcher matcher2 = pattern2.matcher(line);
 
         while (matcher2.find()) {
@@ -80,7 +77,8 @@ public class MultipartObject {
 
     /**
      * Get actual content bytes
-     * @return
+     *
+     * @return content bytes
      */
     public byte[] getData() {
         return data;
@@ -88,7 +86,7 @@ public class MultipartObject {
 
     /**
      * Name header
-     * @return
+     * @return Name
      */
     public String getName() {
         return name;
@@ -96,7 +94,7 @@ public class MultipartObject {
 
     /**
      * Content-Type header value
-     * @return
+     * @return Content-type
      */
     public String getContentType() {
         return contentType;
@@ -104,7 +102,7 @@ public class MultipartObject {
 
     /**
      * Does this multipart-object have a disposition
-     * @return
+     * @return true if disposition present, false otherwise
      */
     public boolean isHasDisposition() {
         return hasDisposition;
@@ -112,7 +110,7 @@ public class MultipartObject {
 
     /**
      * Do we have a Content-Type header value?
-     * @return
+     * @return true if content type present, false otherwise
      */
     public boolean isHasContentType() {
         return hasContentType;
@@ -120,7 +118,7 @@ public class MultipartObject {
 
     /**
      * Disposition type
-     * @return
+     * @return The disposition type
      */
     public String getDispositionType() {
         return dispositionType;
@@ -128,7 +126,7 @@ public class MultipartObject {
 
     /**
      * Disposition name
-     * @return
+     * @return the disposition name
      */
     public String getDispositionName() {
         return dispositionName;
@@ -136,7 +134,7 @@ public class MultipartObject {
 
     /**
      * disposition filename
-     * @return
+     * @return the disposition filename
      */
     public String getDispositionFilename() {
         return dispositionFilename;
@@ -144,7 +142,7 @@ public class MultipartObject {
 
     /**
      * disposition Content-Type value
-     * @return
+     * @return the disposition content-type
      */
     public String getDispositionContentType() {
         return dispositionContentType;
@@ -152,7 +150,7 @@ public class MultipartObject {
 
     /**
      * override the disposition filename (used with POST if the file already exists since POST creates a new resource)
-     * @param dispositionFilename
+     * @param dispositionFilename the filename to set
      */
     public void setDispositionFilename(String dispositionFilename) {
         this.dispositionFilename = dispositionFilename;

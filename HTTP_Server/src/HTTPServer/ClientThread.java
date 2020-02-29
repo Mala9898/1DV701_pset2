@@ -27,9 +27,9 @@ public class ClientThread implements Runnable {
 	private static final String INDEX_HTM = "/index.htm";
 	OutputStream outputStream = null;
 	InputStream inputStream = null;
-	private Random random = new Random();
-	private Socket clientSocket;
-	private File servingDirectory;
+	private final Random random = new Random();
+	private final Socket clientSocket;
+	private final File servingDirectory;
 
 	// Constructor only needs serving directory and the socket where the HTTP connection is coming from.
 	public ClientThread(Socket clientSocket, File directory, int timeout) throws IOException {
