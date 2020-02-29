@@ -44,7 +44,7 @@ public class ClientThread implements Runnable {
 	@Override
 	public void run() {
 		// Failure boolean prevents request handling, kills thread prematurely.
-		boolean failure = false;
+		boolean processRequest = true;
 
 		// Sets up request objects
 		RequestParser requestParser = new RequestParser();
@@ -55,31 +55,21 @@ public class ClientThread implements Runnable {
 		}
 		// RequestParser throws IllegalArgument when the received request is malformed.
 		catch (IllegalArgumentException e) {
-			try {
-				System.err.println("Bad request received");
-				sendError(StatusCode.CLIENT_ERROR_400_BAD_REQUEST);
-			}
-			catch (IOException ex) {
-				System.err.println("Error sending the error response: " + e.getMessage());
-			}
-			failure = true;
+			System.err.println("Bad request received");
+			sendError(StatusCode.CLIENT_ERROR_400_BAD_REQUEST);
+			processRequest = false;
 		}
 		// RequestParser throws generic IO Error when it failed to receive.
 		catch (SocketTimeoutException e) {
 			System.err.println("Client did not manage to send data in time, terminating connection");
-			try {
-				sendError(StatusCode.CLIENT_ERROR_408_REQUEST_TIMEOUT);
-			}
-			catch (IOException ex) {
-				System.err.println("Error sending the error response: " + e.getMessage());
-			}
-			failure = true;
+			sendError(StatusCode.CLIENT_ERROR_408_REQUEST_TIMEOUT);
+			processRequest = false;
 		}
 		catch (Exception e) {
 			System.err.println("Generic IOException: " + e.getMessage());
 		}
 
-		if (!failure && request != null) {
+		if (processRequest && request != null) {
 			// Processes the request method, methods will send appropriate response.
 			// Exceptions relating to errors during response creation are handled in handleRequest()
 			handleRequest(request);
@@ -145,24 +135,20 @@ public class ClientThread implements Runnable {
 					break;
 			}
 		}
+		// If a file was unable to be found
+		catch (FileNotFoundException e) {
+			sendError(StatusCode.CLIENT_ERROR_404_NOT_FOUND);
+			System.err.println("Failed to send error to client: " + e.getMessage());
+		}
+		// If an inputStream.read() times out somewhere
 		catch (SocketTimeoutException e) {
 			System.err.println("Client did not manage to send data in time, terminating connection");
-			try {
-				sendError(StatusCode.CLIENT_ERROR_408_REQUEST_TIMEOUT);
-			}
-			catch (IOException ex) {
-				System.err.println("Failed to send error to client: " + e.getMessage());
-			}
+			sendError(StatusCode.CLIENT_ERROR_408_REQUEST_TIMEOUT);
 		}
 		// Any general unhandled exception that arises when attempting to process a request will send a 500 internal error to the client.
 		catch (IOException e) {
 			System.err.println("Error when processing request: " + e.getMessage());
-			try {
-				sendError(StatusCode.SERVER_ERROR_500_INTERNAL_SERVER_ERROR);
-			}
-			catch (IOException ex) {
-				System.err.println("Failed to send error to client: " + e.getMessage());
-			}
+			sendError(StatusCode.SERVER_ERROR_500_INTERNAL_SERVER_ERROR);
 		}
 	}
 
@@ -175,7 +161,6 @@ public class ClientThread implements Runnable {
 	private void processGet(Request request) throws IOException {
 		String requestedPath = servingDirectory.getAbsolutePath() + request.getPathRequest();
 		String finalPath = "";
-		boolean error404 = false;
 		StatusCode finalStatus = StatusCode.SUCCESS_200_OK;
 
 		File requestedFile = new File(servingDirectory, request.getPathRequest());
@@ -195,6 +180,7 @@ public class ClientThread implements Runnable {
 		// code below generates and sends this dynamic page
 		if (request.getPathRequest().equals("/content") || request.getPathRequest().equals("/content/")) {
 			// Generates the content body, puts it into a string
+			// May throw a FileNotFoundException
 			String messageBody = generateContentPage("/content");
 
 			// Constructs the response with our custom body
@@ -209,7 +195,7 @@ public class ClientThread implements Runnable {
 			return;
 		}
 
-		// If file is readable and is a directory, serve .HTML, .HTM (in order) if found. Otherwise, 404 not found.
+		// If file is readable and is a directory, serve .HTML, .HTM (in order) if found. Otherwise, throw FileNotFoundException
 		if (Files.isDirectory(Paths.get(requestedPath))) {
 			finalPath = requestedPath + INDEX_HTML;
 
@@ -219,7 +205,7 @@ public class ClientThread implements Runnable {
 
 				// If index html and index htm doesn't exist
 				if (!Files.isReadable(Paths.get(finalPath))) {
-					error404 = true;
+					throw new FileNotFoundException("File was not found");
 				}
 			}
 		}
@@ -229,17 +215,10 @@ public class ClientThread implements Runnable {
 		}
 		else {
 			// If file or folder does not exist.
-			error404 = true;
+			throw new FileNotFoundException("File was not found");
 		}
 
-		// If previous if-block indicates that resource does not exist, set response to path 404.html and 404 header.
-		if (error404) {
-			sendError(StatusCode.CLIENT_ERROR_404_NOT_FOUND);
-		}
-		else {
-			// Otherwise, send requested content.
-			sendContentResponse(finalPath, finalStatus);
-		}
+		sendContentResponse(finalPath, finalStatus);
 	}
 
 	/**
@@ -414,18 +393,23 @@ public class ClientThread implements Runnable {
 	 * send a 4XX/5XX error response
 	 *
 	 * @param statusCode Code to send
-	 * @throws IOException if we failed to send error because of stream issues
 	 */
-	private void sendError(StatusCode statusCode) throws IOException {
+	private void sendError(StatusCode statusCode) {
 		ResponseBuilder responseBuilder = new ResponseBuilder();
 		String body;
 		String header;
 
 		body = responseBuilder.generateHTMLMessage(statusCode.getCode());
 		header = responseBuilder.generateGenericHeader("text/html", statusCode, body.length());
-		outputStream.write(header.getBytes());
-		outputStream.write(body.getBytes());
-		outputStream.flush();
+		// If we for some reason fail to send an error, output this to console along with th reason.
+		try {
+			outputStream.write(header.getBytes());
+			outputStream.write(body.getBytes());
+			outputStream.flush();
+		}
+		catch (IOException e) {
+			System.out.println("Failed to send error to client: " + e.getMessage());
+		}
 	}
 
 	/**
